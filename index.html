@@ -84,17 +84,22 @@
         <span>New</span>
       </button>
 
+      <button onclick="openKhataModal()" class="px-2.5 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 flex items-center space-x-1 text-xs font-bold transition" title="Customer Khata / Ledger">
+        <i class="fa-solid fa-book-bookmark text-[11px]"></i>
+        <span>खाता</span>
+      </button>
+
       <button id="topBtBtn" onclick="openBtModal()" class="w-8 h-8 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-gray-400 flex items-center justify-center text-xs transition border border-gray-700 relative" title="Bluetooth 80mm Printer">
         <i class="fa-brands fa-bluetooth-b" id="topBtIcon"></i>
         <span id="topBtIndicatorDot" class="w-2 h-2 rounded-full bg-red-500 absolute top-0.5 right-0.5"></span>
       </button>
 
-      <button onclick="openReportsModal()" class="px-2.5 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 flex items-center space-x-1 text-xs font-semibold transition">
+      <button onclick="openReportsModal()" class="px-2 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 flex items-center space-x-1 text-xs font-semibold transition">
         <i class="fa-solid fa-clock-rotate-left text-[11px]"></i>
         <span>Report</span>
       </button>
 
-      <button onclick="openInventoryModal()" class="px-2.5 py-1.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1 text-xs font-semibold transition">
+      <button onclick="openInventoryModal()" class="px-2 py-1.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1 text-xs font-semibold transition">
         <i class="fa-solid fa-box text-[11px]"></i>
         <span>Items</span>
       </button>
@@ -110,20 +115,88 @@
   </header>
 
   <!-- ================= SUBHEADER / BILL METADATA ================= -->
-  <div class="bg-[#121215] px-3 py-1.5 border-b border-gray-800 flex items-center space-x-2 shrink-0 text-xs">
-    <div class="bg-amber-500 text-black font-extrabold px-2 py-0.5 rounded text-[11px] shrink-0 font-mono-num" id="displayBillNum">
-      Bill #01
-    </div>
-    
-    <input type="text" id="custNameInput" oninput="onCustomerNameChange(this.value)" placeholder="Customer Name (Optional)" 
-           class="flex-1 bg-[#1f1f23] text-gray-200 placeholder-gray-500 px-2.5 py-1 rounded border border-gray-700/60 text-xs focus:outline-none focus:border-amber-500 transition">
+  <div class="bg-[#121215] px-3 py-1.5 border-b border-gray-800 flex flex-col gap-1.5 shrink-0 text-xs">
+    <div class="flex items-center space-x-2 relative">
+      <div class="bg-amber-500 text-black font-extrabold px-2 py-0.5 rounded text-[11px] shrink-0 font-mono-num" id="displayBillNum">
+        Bill #01
+      </div>
+      
+      <!-- Customer input with initials suggestions dropdown (ONLY NAME) -->
+      <div class="relative flex-1">
+        <input type="text" id="custNameInput" oninput="handleCustomerNameInput(this.value)" onfocus="handleCustomerNameInput(this.value)" placeholder="Customer Name (Optional)" 
+               autocomplete="off"
+               class="w-full bg-[#1f1f23] text-gray-200 placeholder-gray-500 px-2.5 py-1 rounded border border-gray-700/60 text-xs focus:outline-none focus:border-amber-500 transition">
+        
+        <!-- Auto Suggestion Floating Dropdown (ONLY NAME) -->
+        <div id="customerSuggestDropdown" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#1e1e24] border border-amber-500/50 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto divide-y divide-gray-800"></div>
+      </div>
 
-    <select id="paymentModeSelect" onchange="onPaymentModeChange(this.value)" class="bg-[#1f1f23] text-gray-200 px-2 py-1 rounded border border-gray-700/60 text-xs focus:outline-none font-medium">
-      <option value="Cash">Cash</option>
-      <option value="UPI">UPI</option>
-      <option value="Card">Card</option>
-      <option value="Credit">Credit</option>
-    </select>
+      <!-- MAIN PAYMENT & UDHAR CONTROLS -->
+      <div class="relative shrink-0 flex items-center gap-1.5">
+        <!-- Dedicated Main Udhar Toggle Button -->
+        <button type="button" id="mainUdharBtn" onclick="toggleUdharMode()" class="px-2.5 py-1 rounded border border-gray-700 bg-[#1f1f23] text-gray-300 hover:border-red-500 text-xs font-bold transition flex items-center gap-1">
+          <i class="fa-solid fa-book-bookmark text-[10px] text-red-400"></i>
+          <span>उधार</span>
+        </button>
+
+        <!-- Payment Mode Select (Cash, UPI, Cash+UPI, Partial) -->
+        <select id="paymentModeSelect" onchange="onPaymentModeChange(this.value)" class="bg-[#1f1f23] text-gray-200 px-2 py-1 rounded border border-gray-700/60 text-xs focus:outline-none font-medium">
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="Cash+UPI">Cash + UPI</option>
+          <option value="Partial">Partial (आंशिक)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- SPLIT PAYMENT ROW (Visible when Cash+UPI is selected) -->
+    <div id="splitPaymentRow" class="hidden bg-[#18181f] p-1.5 rounded-lg border border-amber-500/30 flex items-center gap-2">
+      <span class="text-[10px] font-bold text-amber-400 shrink-0">Split:</span>
+      <div class="flex-1 flex items-center gap-1 bg-[#121215] px-2 py-0.5 rounded border border-gray-700">
+        <span class="text-[10px] text-gray-400 font-semibold">Cash:</span>
+        <input type="number" id="splitCashAmount" oninput="handleSplitAmountChange('cash')" placeholder="0" class="w-full bg-transparent text-white font-mono-num text-xs outline-none">
+      </div>
+      <div class="flex-1 flex items-center gap-1 bg-[#121215] px-2 py-0.5 rounded border border-gray-700">
+        <span class="text-[10px] text-gray-400 font-semibold">UPI:</span>
+        <input type="number" id="splitUpiAmount" oninput="handleSplitAmountChange('upi')" placeholder="0" class="w-full bg-transparent text-white font-mono-num text-xs outline-none">
+      </div>
+    </div>
+
+    <!-- PARTIAL PAYMENT ROW (Visible when Partial is selected) -->
+    <div id="partialPaymentRow" class="hidden bg-[#18181f] p-2 rounded-xl border border-red-500/40 space-y-1.5">
+      <div class="flex items-center justify-between text-[11px]">
+        <span class="font-bold text-red-400 flex items-center gap-1">
+          <i class="fa-solid fa-hand-holding-dollar"></i> आंशिक भुगतान:
+        </span>
+        <div class="flex items-center gap-2 text-[10px]">
+          <label class="flex items-center gap-1 cursor-pointer text-gray-300">
+            <input type="radio" name="partialMode" value="Cash" checked onchange="onPartialModeTypeChange(this.value)" class="accent-amber-500"> Cash
+          </label>
+          <label class="flex items-center gap-1 cursor-pointer text-gray-300">
+            <input type="radio" name="partialMode" value="UPI" onchange="onPartialModeTypeChange(this.value)" class="accent-amber-500"> UPI
+          </label>
+          <label class="flex items-center gap-1 cursor-pointer text-gray-300">
+            <input type="radio" name="partialMode" value="Both" onchange="onPartialModeTypeChange(this.value)" class="accent-amber-500"> Both
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <div id="partialCashBox" class="flex-1 flex items-center gap-1 bg-[#121215] px-2 py-1 rounded border border-gray-700">
+          <span class="text-[10px] text-gray-400 font-semibold">Cash ₹:</span>
+          <input type="number" id="partialCashInput" oninput="updatePartialCalculations()" placeholder="0" class="w-full bg-transparent text-white font-mono-num text-xs outline-none">
+        </div>
+        <div id="partialUpiBox" class="hidden flex-1 flex items-center gap-1 bg-[#121215] px-2 py-1 rounded border border-gray-700">
+          <span class="text-[10px] text-gray-400 font-semibold">UPI ₹:</span>
+          <input type="number" id="partialUpiInput" oninput="updatePartialCalculations()" placeholder="0" class="w-full bg-transparent text-white font-mono-num text-xs outline-none">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between text-[10px] pt-1 border-t border-gray-800 text-gray-300 font-mono-num">
+        <span>जमा (Paid): <b id="partialPaidBadge" class="text-emerald-400 font-bold">₹0</b></span>
+        <span>बकाया (उधार): <b id="partialDueBadge" class="text-red-400 font-bold">₹0</b></span>
+      </div>
+    </div>
   </div>
 
   <!-- ================= TABLE HEADER ================= -->
@@ -146,13 +219,35 @@
       <div class="w-full max-w-xs space-y-1.5" id="presetPillsContainer"></div>
     </div>
 
+    <!-- Active Line Items -->
     <div id="activeItemsList" class="space-y-1"></div>
-  </div>
 
-  <!-- Rate Auto-Suggest Strip -->
-  <div id="rateSuggestBar" class="hidden bg-[#1c1c21] border-t border-amber-500/30 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto shrink-0 text-xs">
-    <span class="text-[10px] uppercase font-bold text-amber-400 shrink-0"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Matched:</span>
-    <div id="rateSuggestPills" class="flex items-center gap-1.5"></div>
+    <!-- LIVE INLINE DRAFT ROW & RATE DROPDOWN MENU (ONLY ITEM NAME) -->
+    <div id="inlineDraftRow" class="hidden border border-amber-500/60 rounded-xl bg-[#1c1c22] p-2 mt-1 shadow-lg space-y-2">
+      <div class="grid grid-cols-12 text-xs items-center">
+        <span class="col-span-1 text-center font-bold text-amber-400 text-[11px]" id="draftRowSr">#</span>
+        <div class="col-span-5 pr-1">
+          <span id="draftItemNameText" class="font-extrabold text-white text-xs truncate block">Select Product</span>
+          <span class="text-[9px] text-gray-400" id="draftItemSubText">कीपैड से रेट टाइप करें</span>
+        </div>
+        <span id="draftQtyText" class="col-span-2 text-center text-amber-400 font-mono-num font-extrabold text-sm">1</span>
+        <span id="draftRateText" class="col-span-2 text-right text-gray-300 font-mono-num font-bold">0</span>
+        <span id="draftTotalText" class="col-span-2 text-right text-amber-400 font-extrabold font-mono-num">0</span>
+      </div>
+
+      <!-- Price Matched Dropdown Area (ONLY ITEM NAME DISPLAYED) -->
+      <div id="inlineDropdownContainer" class="border-t border-gray-700/80 pt-1.5 space-y-1.5">
+        <div class="flex items-center justify-between text-[10px] text-gray-400 font-bold px-1">
+          <span class="text-amber-400 flex items-center gap-1">
+            <i class="fa-solid fa-tag"></i>
+            <span id="dropdownTitleLabel">आइटम चुनें:</span>
+          </span>
+          <span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded font-mono-num" id="dropdownCountBadge">0 found</span>
+        </div>
+        <!-- Grid of item name chips (only clean name, no stock or category) -->
+        <div id="inlineDropdownItemsList" class="max-h-36 overflow-y-auto flex flex-wrap gap-1.5 pr-1"></div>
+      </div>
+    </div>
   </div>
 
   <!-- ================= SUMMARY BAR ================= -->
@@ -243,7 +338,86 @@
 
   <!-- ================= MODALS ================= -->
 
-  <!-- 1. RECEIPT PREVIEW MODAL -->
+  <!-- 1. KHATA (CREDIT / LEDGER) MODAL -->
+  <div id="khataModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+    <div class="bg-[#18181b] border border-red-500/40 w-full max-w-md rounded-2xl overflow-hidden flex flex-col max-h-[92vh] shadow-2xl">
+      <div class="px-4 py-3 bg-[#242427] border-b border-gray-700 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-book-bookmark text-red-400"></i>
+          <div>
+            <h3 class="text-sm font-bold text-white leading-none">उधार खाता (Khata Ledger)</h3>
+            <p class="text-[10px] text-gray-400 mt-0.5">क्रेडिट बिल व बकाया राशि हिसाब</p>
+          </div>
+        </div>
+        <button onclick="closeKhataModal()" class="text-gray-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- KPI Summary -->
+      <div class="p-3 grid grid-cols-2 gap-2 bg-[#121215] border-b border-gray-800 text-center">
+        <div class="bg-[#1e1e24] p-2 rounded-xl border border-gray-800">
+          <div class="text-[10px] text-gray-400 uppercase font-semibold">कुल उधार ग्राहक</div>
+          <div class="text-base font-extrabold text-white font-mono-num" id="khataTotalCustomers">0</div>
+        </div>
+        <div class="bg-[#1e1e24] p-2 rounded-xl border border-gray-800">
+          <div class="text-[10px] text-gray-400 uppercase font-semibold">कुल बकाया (Total Due)</div>
+          <div class="text-base font-extrabold text-red-400 font-mono-num" id="khataTotalOutstanding">₹0</div>
+        </div>
+      </div>
+
+      <!-- Search bar -->
+      <div class="p-2.5 bg-[#19191d] border-b border-gray-800">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-500 text-xs"></i>
+          <input type="text" id="khataSearchInput" oninput="renderKhataList()" placeholder="ग्राहक का नाम खोजें..." 
+                 class="w-full bg-[#121215] text-white pl-8 pr-3 py-1.5 rounded-lg border border-gray-700 text-xs outline-none focus:border-red-400">
+        </div>
+      </div>
+
+      <!-- Khata List -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-2 bg-[#0f0f12]" id="khataCustomerList"></div>
+    </div>
+  </div>
+
+  <!-- 2. CUSTOMER KHATA DETAIL / PAYMENT MODAL -->
+  <div id="khataDetailModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+    <div class="bg-[#18181b] border border-gray-700 w-full max-w-sm rounded-2xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
+      <div class="px-4 py-3 bg-[#242427] border-b border-gray-700 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-white" id="kdCustomerName">Customer</h3>
+          <p class="text-[10px] text-gray-400">लेजर विवरण एवं जमा प्रविष्टि</p>
+        </div>
+        <button onclick="closeKhataDetailModal()" class="text-gray-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Balance Card -->
+      <div class="p-3 bg-[#131317] border-b border-gray-800 flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-400">कुल बकाया राशि:</span>
+        <span class="text-lg font-black text-red-400 font-mono-num" id="kdCustomerBalance">₹0</span>
+      </div>
+
+      <!-- Payment / Jama Form -->
+      <div class="p-3 bg-[#1e1e24] border-b border-gray-800 space-y-2 text-xs">
+        <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wide block">
+          <i class="fa-solid fa-hand-holding-dollar mr-1"></i>रुपये जमा करें (Record Payment)
+        </span>
+        <div class="flex gap-2">
+          <input type="number" id="kdPaymentAmount" placeholder="रकम (₹)" class="flex-1 bg-[#121215] border border-gray-700 rounded-lg px-2.5 py-1.5 text-white font-mono-num outline-none focus:border-emerald-500">
+          <button onclick="submitKhataPayment()" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow">
+            जमा करें
+          </button>
+        </div>
+      </div>
+
+      <!-- Bills History for Customer -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-2 bg-[#0f0f12]" id="kdBillsHistory"></div>
+    </div>
+  </div>
+
+  <!-- 3. RECEIPT PREVIEW MODAL -->
   <div id="receiptModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3">
     <div class="bg-[#18181b] border border-gray-700 w-full max-w-sm rounded-2xl overflow-hidden flex flex-col max-h-[92vh] shadow-2xl">
       <div class="px-4 py-3 bg-[#242427] border-b border-gray-700 flex items-center justify-between">
@@ -262,27 +436,7 @@
         </div>
       </div>
 
-      <!-- RECHECK ENTRY CONTROL BAR -->
-      <div class="px-3 py-2 bg-[#1d1d22] border-b border-gray-700/80 flex items-center justify-between text-xs">
-        <button id="toggleRecheckBtn" onclick="toggleRecheckMode()" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 font-bold flex items-center gap-1.5 transition">
-          <i class="fa-solid fa-list-check text-xs"></i>
-          <span id="recheckBtnText">Recheck Entry</span>
-        </button>
-        <div id="recheckStatusBadge" class="hidden text-[11px] font-mono-num text-gray-300">
-          Checked: <b id="recheckCount" class="text-emerald-400">0</b> / <span id="recheckTotalCount">0</span>
-        </div>
-      </div>
-
-      <!-- RECHECK CHECKBOX PANEL -->
-      <div id="recheckContainer" class="hidden p-3 bg-[#131316] border-b border-gray-700 max-h-64 overflow-y-auto space-y-2">
-        <p class="text-[10px] text-gray-400 flex items-center gap-1">
-          <i class="fa-solid fa-circle-check text-emerald-400"></i>
-          Check the box to verify.
-        </p>
-        <div id="recheckItemsList" class="space-y-1.5 text-xs"></div>
-      </div>
-
-      <!-- Thermal Receipt Paper Container (Full 3-inch coverage) -->
+      <!-- Thermal Receipt Paper Container -->
       <div class="p-4 overflow-y-auto flex-1 flex justify-center bg-[#0d0d0f]">
         <div id="thermalReceiptPaper" class="receipt-paper w-full max-w-[340px] p-4 text-[12px] leading-relaxed shadow-lg border border-gray-300 font-extrabold transition-all">
           <div class="text-center mb-1.5">
@@ -360,7 +514,7 @@
     </div>
   </div>
 
-  <!-- 2. EDIT BILL LINE ITEM MODAL -->
+  <!-- 4. EDIT BILL LINE ITEM MODAL -->
   <div id="editItemModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-[#1e1e24] border border-gray-700 w-full max-w-xs rounded-2xl overflow-hidden p-4 shadow-2xl">
       <div class="flex justify-between items-center pb-2 border-b border-gray-700 mb-3">
@@ -399,7 +553,7 @@
     </div>
   </div>
 
-  <!-- 3. EVERYDAY SALES REPORT MODAL -->
+  <!-- 5. EVERYDAY SALES REPORT MODAL (WITH SEPARATE CASH, UPI & UDHAR SUMMARY) -->
   <div id="reportsModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3">
     <div class="bg-[#18181b] border border-gray-700 w-full max-w-md rounded-2xl overflow-hidden flex flex-col max-h-[92vh] shadow-2xl">
       <div class="px-4 py-3 bg-[#242427] border-b border-gray-700 flex items-center justify-between">
@@ -417,18 +571,44 @@
         <input type="date" id="reportDateInput" onchange="renderDailyReport()" class="bg-[#121215] text-white border border-gray-700 rounded px-2 py-1 text-xs outline-none">
       </div>
 
-      <div class="p-3 grid grid-cols-3 gap-2 bg-[#121215] border-b border-gray-800 text-center">
-        <div class="bg-[#1e1e24] p-2 rounded-xl border border-gray-800">
-          <div class="text-[10px] text-gray-400 uppercase font-semibold">Bills</div>
-          <div class="text-base font-extrabold text-white font-mono-num" id="kpiTotalBills">0</div>
+      <!-- KPI METRICS SUMMARY -->
+      <div class="p-3 bg-[#121215] border-b border-gray-800 space-y-2">
+        <!-- Row 1: Bills, Total Qty, Total Sales -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-[#1e1e24] p-2 rounded-xl border border-gray-800">
+            <div class="text-[10px] text-gray-400 uppercase font-semibold">Bills</div>
+            <div class="text-base font-extrabold text-white font-mono-num" id="kpiTotalBills">0</div>
+          </div>
+          <div class="bg-[#1e1e24] p-2 rounded-xl border border-gray-800">
+            <div class="text-[10px] text-gray-400 uppercase font-semibold">Total Qty</div>
+            <div class="text-base font-extrabold text-amber-400 font-mono-num" id="kpiTotalQty">0</div>
+          </div>
+          <div class="bg-[#1e1e24] p-2 rounded-xl border border-gray-800">
+            <div class="text-[10px] text-gray-400 uppercase font-semibold">Total Sales</div>
+            <div class="text-base font-extrabold text-emerald-400 font-mono-num" id="kpiTotalAmount">₹0</div>
+          </div>
         </div>
-        <div class="bg-[#1e1e24] p-2 rounded-xl border border-gray-800">
-          <div class="text-[10px] text-gray-400 uppercase font-semibold">Total Qty</div>
-          <div class="text-base font-extrabold text-amber-400 font-mono-num" id="kpiTotalQty">0</div>
-        </div>
-        <div class="bg-[#1e1e24] p-2 rounded-xl border border-gray-800">
-          <div class="text-[10px] text-gray-400 uppercase font-semibold">Total Sales</div>
-          <div class="text-base font-extrabold text-emerald-400 font-mono-num" id="kpiTotalAmount">0</div>
+
+        <!-- Row 2: Cash, UPI, and Udhar Payment Mode Summary -->
+        <div class="grid grid-cols-3 gap-2 text-center pt-1 border-t border-gray-800/70">
+          <div class="bg-[#18181f] p-1.5 rounded-xl border border-emerald-500/30">
+            <div class="text-[9px] text-emerald-400 uppercase font-bold flex items-center justify-center gap-1">
+              <i class="fa-solid fa-money-bill-wave"></i> Cash (नकद)
+            </div>
+            <div class="text-xs font-extrabold text-white font-mono-num mt-0.5" id="kpiTotalCash">₹0</div>
+          </div>
+          <div class="bg-[#18181f] p-1.5 rounded-xl border border-blue-500/30">
+            <div class="text-[9px] text-blue-400 uppercase font-bold flex items-center justify-center gap-1">
+              <i class="fa-solid fa-mobile-screen-button"></i> UPI (ऑनलाइन)
+            </div>
+            <div class="text-xs font-extrabold text-white font-mono-num mt-0.5" id="kpiTotalUpi">₹0</div>
+          </div>
+          <div class="bg-[#18181f] p-1.5 rounded-xl border border-red-500/30">
+            <div class="text-[9px] text-red-400 uppercase font-bold flex items-center justify-center gap-1">
+              <i class="fa-solid fa-book-bookmark"></i> उधार (Credit)
+            </div>
+            <div class="text-xs font-extrabold text-white font-mono-num mt-0.5" id="kpiTotalCredit">₹0</div>
+          </div>
         </div>
       </div>
 
@@ -436,13 +616,16 @@
     </div>
   </div>
 
-  <!-- 4. INVENTORY & STOCK MANAGEMENT MODAL -->
+  <!-- 6. INVENTORY & STOCK MANAGEMENT MODAL -->
   <div id="inventoryModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3">
     <div class="bg-[#18181b] border border-gray-700 w-full max-w-md rounded-2xl overflow-hidden flex flex-col max-h-[92vh] shadow-2xl">
       <div class="px-4 py-3 bg-[#242427] border-b border-gray-700 flex items-center justify-between">
         <div class="flex items-center space-x-2">
           <i class="fa-solid fa-boxes-stacked text-emerald-400"></i>
-          <h3 class="text-sm font-bold text-white">Inventory & Quick Items</h3>
+          <div>
+            <h3 class="text-sm font-bold text-white">Inventory Management</h3>
+            <p class="text-[10px] text-gray-400">Addis Jeans Pre-filled Stock List</p>
+          </div>
         </div>
         <button onclick="closeInventoryModal()" class="text-gray-400 hover:text-white p-1">
           <i class="fa-solid fa-xmark text-lg"></i>
@@ -465,7 +648,7 @@
     </div>
   </div>
 
-  <!-- 5. ADD / EDIT PRODUCT IN INVENTORY MODAL -->
+  <!-- 7. ADD / EDIT PRODUCT IN INVENTORY MODAL -->
   <div id="productEditModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-[#1e1e24] border border-gray-700 w-full max-w-xs rounded-2xl overflow-hidden p-4 shadow-2xl">
       <div class="flex justify-between items-center pb-2 border-b border-gray-700 mb-3">
@@ -504,7 +687,7 @@
     </div>
   </div>
 
-  <!-- 6. PRINTER SETTINGS & STORE CONFIG MODAL -->
+  <!-- 8. PRINTER SETTINGS & STORE CONFIG MODAL -->
   <div id="settingsModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3">
     <div class="bg-[#18181b] border border-gray-700 w-full max-w-sm rounded-2xl overflow-hidden flex flex-col max-h-[92vh] shadow-2xl">
       <div class="px-4 py-3 bg-[#242427] border-b border-gray-700 flex items-center justify-between">
@@ -606,7 +789,7 @@
     </div>
   </div>
 
-  <!-- 7. BLUETOOTH THERMAL PRINTER MODAL -->
+  <!-- 9. BLUETOOTH THERMAL PRINTER MODAL -->
   <div id="btModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-[#1e1e24] border border-blue-500/40 w-full max-w-xs rounded-2xl overflow-hidden p-4 shadow-2xl">
       <div class="flex justify-between items-center pb-2 border-b border-gray-700 mb-3">
@@ -642,7 +825,7 @@
     </div>
   </div>
 
-  <!-- 8. ADVANCED RECEIPT CUSTOMIZER MODAL -->
+  <!-- 10. ADVANCED RECEIPT CUSTOMIZER MODAL -->
   <div id="receiptCustomizerModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3">
     <div class="bg-[#18181b] border border-purple-500/40 w-full max-w-md rounded-2xl overflow-hidden flex flex-col max-h-[94vh] shadow-2xl">
       <div class="px-4 py-3 bg-[#202026] border-b border-gray-700 flex items-center justify-between shrink-0">
@@ -859,7 +1042,7 @@
     </div>
   </div>
 
-  <!-- 9. SHARE BILL MODAL -->
+  <!-- 11. SHARE BILL MODAL -->
   <div id="shareModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3">
     <div class="bg-[#1e1e24] border border-gray-700 w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl p-4">
       <div class="flex items-center justify-between pb-3 border-b border-gray-700">
@@ -898,8 +1081,9 @@
   <!-- ================= JAVASCRIPT ================= -->
   <script>
     const STORAGE_KEY_SETTINGS = 'addis_pos_settings';
-    const STORAGE_KEY_ITEMS = 'addis_pos_inventory_v2';
+    const STORAGE_KEY_ITEMS = 'addis_pos_inventory_v3';
     const STORAGE_KEY_BILLS = 'addis_pos_saved_bills';
+    const STORAGE_KEY_KHATA = 'addis_pos_khata_ledger';
     const STORAGE_KEY_RECEIPT_CONFIG = 'addis_pos_receipt_customization';
     const STORAGE_KEY_PAIRED_DEVICE_ID = 'addis_pos_paired_bt_device_id';
 
@@ -908,7 +1092,7 @@
       address: 'Gandhi Nagar',
       phone: '9811348044',
       nextBillNum: 1,
-      paperWidth: '80mm', // Default to 3-inch 80mm
+      paperWidth: '80mm',
       autoCut: true,
       printCopies: 1,
       lineFeeds: 4,
@@ -922,8 +1106,6 @@
       gstin: '',
       billPrefix: 'Bill #',
       footerNote: 'Thank You! Visit Again 🙏',
-      
-      // RECIPIENT TOGGLES
       showAddress: true,
       showPhone: true,
       showFooter: true,
@@ -932,44 +1114,90 @@
       showCustomerName: true,
       showDateTime: true,
       extraBoldPrint: true,
-
-      // TYPOGRAPHY & SIZES
       fontFamily: 'monospace',
       headerFontSize: 'text-base',
       bodyFontSize: 'text-[11px]',
       totalFontSize: 'text-base',
-      
       headerWeight: 'font-black',
       itemsWeight: 'font-black',
       totalWeight: 'font-black',
-      
-      rowPadding: 'normal',
-      rowDividers: 'none',
-      
       showSrNoCol: true,
       showRateCol: false
     };
 
-    let inventory = [
-      { id: "1", name: "28/32 Poly", category: "JEANS", rate: 270, stock: 50 },
-      { id: "2", name: "40/40 Poly", category: "JEANS", rate: 260, stock: 50 },
-      { id: "3", name: "32/40 Poly", category: "JEANS", rate: 220, stock: 50 },
-      { id: "4", name: "34/36 Poly", category: "JEANS", rate: 290, stock: 50 },
-      { id: "5", name: "38/40 Poly", category: "JEANS", rate: 320, stock: 50 },
-      { id: "6", name: "32 Poly", category: "JEANS", rate: 280, stock: 50 },
-      { id: "7", name: "28/32 Slub", category: "JEANS", rate: 310, stock: 50 },
-      { id: "8", name: "40/40 Slub", category: "JEANS", rate: 300, stock: 50 },
-      { id: "9", name: "32/40 Slub", category: "JEANS", rate: 250, stock: 50 },
-      { id: "10", name: "34/36 Slub", category: "JEANS", rate: 330, stock: 50 }
+    const DEFAULT_INVENTORY = [
+      { id: "p1", name: "28/32 Poly", category: "JEANS", rate: 270, stock: 50 },
+      { id: "p2", name: "40/40 Poly", category: "JEANS", rate: 260, stock: 50 },
+      { id: "p3", name: "32/40 Poly", category: "JEANS", rate: 220, stock: 50 },
+      { id: "p4", name: "34/36 Poly", category: "JEANS", rate: 290, stock: 50 },
+      { id: "p5", name: "38/40 Poly", category: "JEANS", rate: 320, stock: 50 },
+      { id: "p6", name: "32 Poly", category: "JEANS", rate: 280, stock: 50 },
+
+      { id: "p7", name: "28/32 Slub", category: "JEANS", rate: 310, stock: 50 },
+      { id: "p8", name: "40/40 Slub", category: "JEANS", rate: 300, stock: 50 },
+      { id: "p9", name: "32/40 Slub", category: "JEANS", rate: 250, stock: 50 },
+      { id: "p10", name: "34/36 Slub", category: "JEANS", rate: 330, stock: 50 },
+
+      { id: "p11", name: "28/32 Wisker", category: "JEANS", rate: 320, stock: 50 },
+      { id: "p12", name: "40/40 Wisker", category: "JEANS", rate: 310, stock: 50 },
+      { id: "p13", name: "32/40 Wisker", category: "JEANS", rate: 260, stock: 50 },
+
+      { id: "p14", name: "28/32 Fire", category: "JEANS", rate: 320, stock: 50 },
+      { id: "p15", name: "40/40 Fire", category: "JEANS", rate: 310, stock: 50 },
+      { id: "p16", name: "32/40 Fire", category: "JEANS", rate: 260, stock: 50 },
+
+      { id: "p17", name: "28/32 Bootcut", category: "JEANS", rate: 340, stock: 50 },
+      { id: "p18", name: "40/40 Bootcut", category: "JEANS", rate: 330, stock: 50 },
+      { id: "p19", name: "32/40 Bootcut", category: "JEANS", rate: 270, stock: 50 },
+
+      { id: "p20", name: "28/32 Jorden", category: "JEANS", rate: 330, stock: 50 },
+      { id: "p21", name: "40/40 Jorden", category: "JEANS", rate: 320, stock: 50 },
+      { id: "p22", name: "32/40 Jorden", category: "JEANS", rate: 270, stock: 50 },
+
+      { id: "p23", name: "28/32 DMG", category: "JEANS", rate: 290, stock: 50 },
+      { id: "p24", name: "40/40 DMG", category: "JEANS", rate: 280, stock: 50 },
+      { id: "p25", name: "32/40 DMG", category: "JEANS", rate: 230, stock: 50 },
+
+      { id: "p26", name: "28/32 Six-Pocket", category: "JEANS", rate: 310, stock: 50 },
+      { id: "p27", name: "40/40 Six-Pocket", category: "JEANS", rate: 300, stock: 50 },
+      { id: "p28", name: "32/40 Six-Pocket", category: "JEANS", rate: 260, stock: 50 },
+
+      { id: "p29", name: "28/32 Z-Black", category: "JEANS", rate: 280, stock: 50 },
+      { id: "p30", name: "40/40 Z-Black", category: "JEANS", rate: 260, stock: 50 },
+      { id: "p31", name: "28/32 Z-Black", category: "JEANS", rate: 250, stock: 50 },
+      { id: "p32", name: "28/32 Z-Black", category: "JEANS", rate: 200, stock: 50 },
+
+      { id: "p33", name: "28/32 White", category: "JEANS", rate: 240, stock: 50 },
+      { id: "p34", name: "40/40 White", category: "JEANS", rate: 230, stock: 50 },
+      { id: "p35", name: "32/40 White", category: "JEANS", rate: 150, stock: 50 },
+
+      { id: "p36", name: "28/34 Cotton", category: "COTTON", rate: 210, stock: 50 },
+      { id: "p37", name: "28/34 Cotton", category: "COTTON", rate: 200, stock: 50 },
+      { id: "p38", name: "28/34 Formal", category: "FORMAL", rate: 180, stock: 50 },
+      { id: "p39", name: "28/34 Joggers", category: "JOGGERS", rate: 200, stock: 50 },
+
+      { id: "p40", name: "Cotton", category: "COTTON", rate: 350, stock: 50 },
+      { id: "p41", name: "RFD", category: "JEANS", rate: 330, stock: 50 },
+      { id: "p42", name: "32/40 Black Six-Pocket", category: "JEANS", rate: 150, stock: 50 }
     ];
 
+    let inventory = [...DEFAULT_INVENTORY];
     let savedBills = [];
+    let khataLedger = {};
 
     let activeBill = {
       billNo: 1,
       date: '',
       customerName: '',
       paymentMode: 'Cash',
+      isUdhar: false,
+      splitCash: 0,
+      splitUpi: 0,
+      partialCash: 0,
+      partialUpi: 0,
+      partialPaid: 0,
+      partialDue: 0,
+      partialType: 'Cash',
       items: []
     };
 
@@ -977,14 +1205,12 @@
     let editingSavedBillId = null;
     let activeEditingItemIndex = -1;
     let activeEditingProductId = null;
-
-    let isRechecking = false;
-    let recheckItemsState = [];
+    let selectedKhataCustomer = null;
 
     let activeField = 'qty';
     let currentQtyStr = '';
     let currentRateStr = '';
-    let selectedSuggestedItemName = '';
+    let draftItemName = '';
 
     let audioCtx = null;
     let bluetoothDevice = null;
@@ -996,6 +1222,14 @@
       renderPresetQuickChips();
       renderActiveBillUI();
       attemptAutoConnectPairedBluetooth();
+
+      document.addEventListener('click', (e) => {
+        const drop = document.getElementById('customerSuggestDropdown');
+        const input = document.getElementById('custNameInput');
+        if (drop && !drop.contains(e.target) && e.target !== input) {
+          drop.classList.add('hidden');
+        }
+      });
     });
 
     function loadLocalStorageData() {
@@ -1007,10 +1241,18 @@
         if (savedReceipt) receiptConfig = Object.assign(receiptConfig, JSON.parse(savedReceipt));
 
         const savedInv = localStorage.getItem(STORAGE_KEY_ITEMS);
-        if (savedInv) inventory = JSON.parse(savedInv);
+        if (savedInv) {
+          inventory = JSON.parse(savedInv);
+        } else {
+          inventory = [...DEFAULT_INVENTORY];
+          localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(inventory));
+        }
 
         const savedB = localStorage.getItem(STORAGE_KEY_BILLS);
         if (savedB) savedBills = JSON.parse(savedB);
+
+        const savedK = localStorage.getItem(STORAGE_KEY_KHATA);
+        if (savedK) khataLedger = JSON.parse(savedK);
       } catch (e) {
         console.error('Storage error', e);
       }
@@ -1022,13 +1264,215 @@
       localStorage.setItem(STORAGE_KEY_RECEIPT_CONFIG, JSON.stringify(receiptConfig));
       localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(inventory));
       localStorage.setItem(STORAGE_KEY_BILLS, JSON.stringify(savedBills));
+      localStorage.setItem(STORAGE_KEY_KHATA, JSON.stringify(khataLedger));
     }
 
-    function onCustomerNameChange(val) {
-      activeBill.customerName = val.trim();
+    /* ==========================================================================
+       CUSTOMER INITIALS AUTO-SUGGEST (ONLY NAME - NO BALANCE)
+       ========================================================================== */
+    function getAllCustomerNamesOnly() {
+      const namesSet = new Set();
+      
+      Object.keys(khataLedger).forEach(name => {
+        if (name && name.trim()) namesSet.add(name.trim());
+      });
+
+      savedBills.forEach(b => {
+        if (b.customerName && b.customerName.trim()) {
+          namesSet.add(b.customerName.trim());
+        }
+      });
+
+      return Array.from(namesSet);
     }
+
+    function handleCustomerNameInput(val) {
+      activeBill.customerName = val.trim();
+      const dropdown = document.getElementById('customerSuggestDropdown');
+      const query = (val || '').toLowerCase().trim();
+
+      if (!query) {
+        dropdown.classList.add('hidden');
+        return;
+      }
+
+      const allCustomers = getAllCustomerNamesOnly();
+      const matches = allCustomers.filter(name => name.toLowerCase().includes(query));
+
+      if (matches.length === 0) {
+        dropdown.classList.add('hidden');
+        return;
+      }
+
+      dropdown.innerHTML = '';
+      matches.slice(0, 6).forEach(name => {
+        const itemBtn = document.createElement('button');
+        itemBtn.type = 'button';
+        itemBtn.className = 'w-full px-3 py-2 text-left hover:bg-amber-500/20 flex items-center gap-2 text-xs transition cursor-pointer text-white font-semibold';
+        itemBtn.innerHTML = `
+          <i class="fa-solid fa-user text-amber-400 text-[11px]"></i>
+          <span>${name}</span>
+        `;
+        itemBtn.onmousedown = (e) => {
+          e.preventDefault();
+          selectCustomerFromSuggest(name);
+        };
+        dropdown.appendChild(itemBtn);
+      });
+
+      dropdown.classList.remove('hidden');
+    }
+
+    function selectCustomerFromSuggest(name) {
+      playClickSound();
+      document.getElementById('custNameInput').value = name;
+      activeBill.customerName = name;
+      document.getElementById('customerSuggestDropdown').classList.add('hidden');
+    }
+
+    /* ==========================================================================
+       MAIN SCREEN UDHAR TOGGLE & PAYMENT OPTIONS
+       ========================================================================== */
+    function toggleUdharMode() {
+      playClickSound();
+      activeBill.isUdhar = !activeBill.isUdhar;
+      updateUdharUI();
+    }
+
+    function updateUdharUI() {
+      const btn = document.getElementById('mainUdharBtn');
+      const paySelect = document.getElementById('paymentModeSelect');
+      const nameInput = document.getElementById('custNameInput');
+      const splitRow = document.getElementById('splitPaymentRow');
+      const partialRow = document.getElementById('partialPaymentRow');
+
+      if (activeBill.isUdhar) {
+        btn.className = "px-2.5 py-1 rounded border border-red-500 bg-red-600 text-white text-xs font-black shadow transition flex items-center gap-1 animate-pulse";
+        btn.innerHTML = `<i class="fa-solid fa-circle-check text-[10px]"></i><span>उधार (ON)</span>`;
+        paySelect.classList.add('hidden');
+        splitRow.classList.add('hidden');
+        partialRow.classList.add('hidden');
+        nameInput.placeholder = "Customer Name (अनिवार्य - उधार *)";
+        nameInput.classList.add('border-red-500');
+        activeBill.paymentMode = 'Credit';
+        if (!nameInput.value.trim()) nameInput.focus();
+      } else {
+        btn.className = "px-2.5 py-1 rounded border border-gray-700 bg-[#1f1f23] text-gray-300 hover:border-red-500 text-xs font-bold transition flex items-center gap-1";
+        btn.innerHTML = `<i class="fa-solid fa-book-bookmark text-[10px] text-red-400"></i><span>उधार</span>`;
+        paySelect.classList.remove('hidden');
+        nameInput.placeholder = "Customer Name (Optional)";
+        nameInput.classList.remove('border-red-500');
+        activeBill.paymentMode = paySelect.value;
+        if (activeBill.paymentMode === 'Cash+UPI') {
+          splitRow.classList.remove('hidden');
+          partialRow.classList.add('hidden');
+          syncSplitAmountsToTotal();
+        } else if (activeBill.paymentMode === 'Partial') {
+          splitRow.classList.add('hidden');
+          partialRow.classList.remove('hidden');
+          nameInput.placeholder = "Customer Name (अनिवार्य - आंशिक/उधार *)";
+          nameInput.classList.add('border-red-500');
+          updatePartialCalculations();
+        } else {
+          splitRow.classList.add('hidden');
+          partialRow.classList.add('hidden');
+        }
+      }
+    }
+
     function onPaymentModeChange(val) {
+      playClickSound();
       activeBill.paymentMode = val;
+      const splitRow = document.getElementById('splitPaymentRow');
+      const partialRow = document.getElementById('partialPaymentRow');
+      const nameInput = document.getElementById('custNameInput');
+
+      if (val === 'Cash+UPI') {
+        splitRow.classList.remove('hidden');
+        partialRow.classList.add('hidden');
+        nameInput.placeholder = "Customer Name (Optional)";
+        nameInput.classList.remove('border-red-500');
+        syncSplitAmountsToTotal();
+      } else if (val === 'Partial') {
+        splitRow.classList.add('hidden');
+        partialRow.classList.remove('hidden');
+        nameInput.placeholder = "Customer Name (अनिवार्य - आंशिक/उधार *)";
+        nameInput.classList.add('border-red-500');
+        updatePartialCalculations();
+        if (!nameInput.value.trim()) nameInput.focus();
+      } else {
+        splitRow.classList.add('hidden');
+        partialRow.classList.add('hidden');
+        nameInput.placeholder = "Customer Name (Optional)";
+        nameInput.classList.remove('border-red-500');
+      }
+    }
+
+    function onPartialModeTypeChange(type) {
+      playClickSound();
+      activeBill.partialType = type;
+      const cashBox = document.getElementById('partialCashBox');
+      const upiBox = document.getElementById('partialUpiBox');
+
+      if (type === 'Cash') {
+        cashBox.classList.remove('hidden');
+        upiBox.classList.add('hidden');
+        document.getElementById('partialUpiInput').value = '';
+      } else if (type === 'UPI') {
+        cashBox.classList.add('hidden');
+        upiBox.classList.remove('hidden');
+        document.getElementById('partialCashInput').value = '';
+      } else { // Both
+        cashBox.classList.remove('hidden');
+        upiBox.classList.remove('hidden');
+      }
+      updatePartialCalculations();
+    }
+
+    function updatePartialCalculations() {
+      const grandTotal = activeBill.items.reduce((sum, it) => sum + it.total, 0);
+      const cashVal = parseFloat(document.getElementById('partialCashInput').value) || 0;
+      const upiVal = parseFloat(document.getElementById('partialUpiInput').value) || 0;
+      const totalPaid = Math.round((cashVal + upiVal) * 100) / 100;
+      const due = Math.max(0, Math.round((grandTotal - totalPaid) * 100) / 100);
+
+      activeBill.partialCash = cashVal;
+      activeBill.partialUpi = upiVal;
+      activeBill.partialPaid = totalPaid;
+      activeBill.partialDue = due;
+
+      document.getElementById('partialPaidBadge').innerText = `₹${totalPaid}`;
+      document.getElementById('partialDueBadge').innerText = `₹${due}`;
+    }
+
+    function syncSplitAmountsToTotal() {
+      const grandTotal = activeBill.items.reduce((sum, it) => sum + it.total, 0);
+      const cashInput = document.getElementById('splitCashAmount');
+      const upiInput = document.getElementById('splitUpiAmount');
+      
+      if (!cashInput.value && !upiInput.value && grandTotal > 0) {
+        cashInput.value = grandTotal;
+        upiInput.value = 0;
+      }
+    }
+
+    function handleSplitAmountChange(source) {
+      const grandTotal = activeBill.items.reduce((sum, it) => sum + it.total, 0);
+      const cashInput = document.getElementById('splitCashAmount');
+      const upiInput = document.getElementById('splitUpiAmount');
+      
+      let cashVal = parseFloat(cashInput.value) || 0;
+      let upiVal = parseFloat(upiInput.value) || 0;
+
+      if (source === 'cash') {
+        upiVal = Math.max(0, grandTotal - cashVal);
+        upiInput.value = upiVal;
+      } else {
+        cashVal = Math.max(0, grandTotal - upiVal);
+        cashInput.value = cashVal;
+      }
+      activeBill.splitCash = cashVal;
+      activeBill.splitUpi = upiVal;
     }
 
     function confirmNewBillEntry() {
@@ -1042,11 +1486,6 @@
     function initNewBill() {
       editingSavedBillId = null;
       currentViewingBill = null;
-      isRechecking = false;
-      document.getElementById('recheckContainer').classList.add('hidden');
-      document.getElementById('recheckStatusBadge').classList.add('hidden');
-      document.getElementById('recheckBtnText').innerText = "Recheck Entry";
-      document.getElementById('thermalReceiptPaper').classList.remove('opacity-40');
 
       document.getElementById('activeEditBadge').classList.add('hidden');
       document.getElementById('cancelEditBanner').classList.add('hidden');
@@ -1061,6 +1500,14 @@
         date: new Date().toISOString(),
         customerName: '',
         paymentMode: 'Cash',
+        isUdhar: false,
+        splitCash: 0,
+        splitUpi: 0,
+        partialCash: 0,
+        partialUpi: 0,
+        partialPaid: 0,
+        partialDue: 0,
+        partialType: 'Cash',
         items: []
       };
 
@@ -1068,17 +1515,27 @@
       document.getElementById('displayBillNum').innerText = `${prefix}${String(activeBill.billNo).padStart(2, '0')}`;
       document.getElementById('custNameInput').value = '';
       document.getElementById('paymentModeSelect').value = 'Cash';
+      document.getElementById('splitPaymentRow').classList.add('hidden');
+      document.getElementById('splitCashAmount').value = '';
+      document.getElementById('splitUpiAmount').value = '';
+      document.getElementById('partialPaymentRow').classList.add('hidden');
+      document.getElementById('partialCashInput').value = '';
+      document.getElementById('partialUpiInput').value = '';
+      document.getElementById('partialPaidBadge').innerText = '₹0';
+      document.getElementById('partialDueBadge').innerText = '₹0';
+      document.getElementById('customerSuggestDropdown').classList.add('hidden');
 
+      updateUdharUI();
       resetKeypadInputs();
     }
 
     function resetKeypadInputs() {
       currentQtyStr = '';
       currentRateStr = '';
-      selectedSuggestedItemName = '';
+      draftItemName = '';
       document.getElementById('activeQtyVal').innerText = '—';
       document.getElementById('activeRateVal').innerText = '—';
-      document.getElementById('rateSuggestBar').classList.add('hidden');
+      hideInlineDraftRow();
       setActiveField('qty');
     }
 
@@ -1102,6 +1559,7 @@
         document.getElementById('activeQtyVal').classList.remove('text-amber-400');
         document.getElementById('activeQtyVal').classList.add('text-gray-400');
       }
+      updateInlineDraftLiveUI();
     }
 
     function tapKey(char) {
@@ -1114,8 +1572,8 @@
         if (char === '.' && currentRateStr.includes('.')) return;
         currentRateStr += char;
         document.getElementById('activeRateVal').innerText = currentRateStr;
-        checkRateAutoSuggestions(parseFloat(currentRateStr));
       }
+      updateInlineDraftLiveUI();
     }
 
     function tapBackspace() {
@@ -1126,8 +1584,8 @@
       } else {
         currentRateStr = currentRateStr.slice(0, -1);
         document.getElementById('activeRateVal').innerText = currentRateStr || '—';
-        checkRateAutoSuggestions(parseFloat(currentRateStr));
       }
+      updateInlineDraftLiveUI();
     }
 
     function tapClear() {
@@ -1146,53 +1604,118 @@
       }
     }
 
+    /* ==========================================================================
+       INLINE ROW & RATE DROPDOWN MENU (ONLY ITEM NAME CHIPS)
+       ========================================================================== */
+    function updateInlineDraftLiveUI() {
+      const draftRow = document.getElementById('inlineDraftRow');
+      const qVal = parseFloat(currentQtyStr) || (currentRateStr ? 1 : 0);
+      const rVal = parseFloat(currentRateStr) || 0;
+
+      if (!currentQtyStr && !currentRateStr) {
+        draftRow.classList.add('hidden');
+        return;
+      }
+
+      draftRow.classList.remove('hidden');
+      document.getElementById('emptyBillState').classList.add('hidden');
+      document.getElementById('draftRowSr').innerText = `#${activeBill.items.length + 1}`;
+      document.getElementById('draftQtyText').innerText = qVal || 1;
+      document.getElementById('draftRateText').innerText = rVal;
+      document.getElementById('draftTotalText').innerText = Math.round((qVal || 1) * rVal * 100) / 100;
+
+      const dropdownTitle = document.getElementById('dropdownTitleLabel');
+      const dropdownBadge = document.getElementById('dropdownCountBadge');
+      const listContainer = document.getElementById('inlineDropdownItemsList');
+
+      listContainer.innerHTML = '';
+
+      if (rVal > 0) {
+        const matches = inventory.filter(item => item.rate === rVal);
+        dropdownTitle.innerText = `रेट ₹${rVal} की आइटम:`;
+        dropdownBadge.innerText = `${matches.length} उपलब्ध`;
+
+        if (matches.length > 0) {
+          if (!draftItemName || !matches.some(m => m.name === draftItemName)) {
+            draftItemName = matches[0].name;
+          }
+
+          matches.forEach(item => {
+            const isSelected = (item.name === draftItemName);
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = `px-3 py-1.5 rounded-lg border text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              isSelected 
+                ? 'bg-amber-500 text-black border-amber-400 shadow-md font-extrabold' 
+                : 'bg-[#18181f] text-gray-200 border-gray-700 hover:bg-[#272732]'
+            }`;
+            chip.onclick = () => {
+              playClickSound();
+              draftItemName = item.name;
+              updateInlineDraftLiveUI();
+            };
+            chip.innerHTML = `
+              <i class="fa-solid ${isSelected ? 'fa-check' : 'fa-shirt text-[10px] opacity-70'}"></i>
+              <span>${item.name}</span>
+            `;
+            listContainer.appendChild(chip);
+          });
+        } else {
+          dropdownTitle.innerText = `रेट ₹${rVal}:`;
+          dropdownBadge.innerText = 'कस्टम';
+          listContainer.innerHTML = `
+            <div class="px-2.5 py-1 rounded bg-[#18181f] text-xs text-amber-300 font-semibold border border-gray-800">
+              कस्टम आइटम @ ₹${rVal}
+            </div>
+          `;
+          if (!draftItemName) draftItemName = `Item @ ₹${rVal}`;
+        }
+      } else {
+        dropdownTitle.innerText = 'रेट दर्ज करें:';
+        dropdownBadge.innerText = 'वेटिंग';
+        listContainer.innerHTML = `
+          <div class="text-gray-500 text-[11px] py-1">
+            रेट डालते ही उस रेट के सभी कपड़े यहाँ दिखेंगे
+          </div>
+        `;
+      }
+
+      document.getElementById('draftItemNameText').innerText = draftItemName || `Item #${activeBill.items.length + 1}`;
+      document.getElementById('draftItemSubText').innerText = rVal > 0 ? `Rate: ₹${rVal}` : 'रेट टाइप करें';
+    }
+
+    function hideInlineDraftRow() {
+      const draftRow = document.getElementById('inlineDraftRow');
+      if (draftRow) draftRow.classList.add('hidden');
+    }
+
     function commitLineItem() {
       const qty = parseFloat(currentQtyStr) || 1;
       const rate = parseFloat(currentRateStr) || 0;
       if (rate <= 0) {
-        alert('Please enter a valid rate greater than 0');
+        alert('कृपया रेट (Rate) दर्ज करें');
+        setActiveField('rate');
         return;
       }
-      let itemName = selectedSuggestedItemName || `Item #${activeBill.items.length + 1}`;
+
+      let finalName = draftItemName || `Item #${activeBill.items.length + 1}`;
+      
       activeBill.items.push({
         id: Date.now().toString(),
-        name: itemName,
+        name: finalName,
         qty: qty,
         rate: rate,
         total: Math.round(qty * rate * 100) / 100
       });
+
       resetKeypadInputs();
       renderActiveBillUI();
-    }
 
-    function checkRateAutoSuggestions(enteredRate) {
-      const suggestBar = document.getElementById('rateSuggestBar');
-      const pillsContainer = document.getElementById('rateSuggestPills');
-      if (!enteredRate || isNaN(enteredRate)) {
-        suggestBar.classList.add('hidden');
-        selectedSuggestedItemName = '';
-        return;
+      if (activeBill.paymentMode === 'Cash+UPI') {
+        syncSplitAmountsToTotal();
+      } else if (activeBill.paymentMode === 'Partial') {
+        updatePartialCalculations();
       }
-      const matches = inventory.filter(item => item.rate === enteredRate);
-      if (matches.length === 0) {
-        suggestBar.classList.add('hidden');
-        selectedSuggestedItemName = '';
-        return;
-      }
-      pillsContainer.innerHTML = '';
-      matches.forEach((item, index) => {
-        const pill = document.createElement('button');
-        pill.className = 'px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-medium hover:bg-amber-500/40 shrink-0';
-        pill.innerText = item.name;
-        pill.onclick = () => {
-          playClickSound();
-          selectedSuggestedItemName = item.name;
-          pill.className = 'px-2.5 py-0.5 rounded-full bg-amber-500 text-black font-bold text-[11px] shrink-0';
-        };
-        pillsContainer.appendChild(pill);
-        if (index === 0) selectedSuggestedItemName = item.name;
-      });
-      suggestBar.classList.remove('hidden');
     }
 
     function renderPresetQuickChips() {
@@ -1201,7 +1724,7 @@
       inventory.slice(0, 4).forEach(item => {
         const btn = document.createElement('button');
         btn.className = 'w-full py-1.5 px-3 bg-[#1c1c20] hover:bg-[#27272e] border border-gray-700/60 rounded-lg text-xs font-semibold text-gray-300 flex items-center justify-between transition';
-        btn.innerHTML = `<span>+ ${item.name}</span> <span class="text-amber-400 font-mono-num">${item.rate}</span>`;
+        btn.innerHTML = `<span>+ ${item.name}</span> <span class="text-amber-400 font-mono-num">₹${item.rate}</span>`;
         btn.onclick = () => {
           playClickSound();
           activeBill.items.push({
@@ -1212,6 +1735,8 @@
             total: item.rate
           });
           renderActiveBillUI();
+          if (activeBill.paymentMode === 'Cash+UPI') syncSplitAmountsToTotal();
+          else if (activeBill.paymentMode === 'Partial') updatePartialCalculations();
         };
         container.appendChild(btn);
       });
@@ -1221,7 +1746,7 @@
       const emptyState = document.getElementById('emptyBillState');
       const itemsList = document.getElementById('activeItemsList');
       if (activeBill.items.length === 0) {
-        emptyState.classList.remove('hidden');
+        if (!currentQtyStr && !currentRateStr) emptyState.classList.remove('hidden');
         itemsList.innerHTML = '';
         document.getElementById('summaryTotalQty').innerText = '0';
         document.getElementById('summaryGrandTotal').innerText = `0`;
@@ -1250,47 +1775,316 @@
       document.getElementById('summaryGrandTotal').innerText = `${grandTotal}`;
     }
 
+    /* ==========================================================================
+       BILL SAVING & KHATA (उधार) AUTO-ENTRY ENGINE
+       ========================================================================== */
+    // Function to create a snapshot of bill data for change detection
+    function getBillSnapshotString(bill) {
+      return JSON.stringify({
+        items: (bill.items || []).map(i => ({ name: i.name, qty: i.qty, rate: i.rate, total: i.total })),
+        customerName: (bill.customerName || '').trim(),
+        paymentMode: bill.paymentMode || 'Cash',
+        splitCash: parseFloat(bill.splitCash) || 0,
+        splitUpi: parseFloat(bill.splitUpi) || 0,
+        partialCash: parseFloat(bill.partialCash) || 0,
+        partialUpi: parseFloat(bill.partialUpi) || 0,
+        partialPaid: parseFloat(bill.partialPaid) || 0,
+        partialDue: parseFloat(bill.partialDue) || 0
+      });
+    }
+
     function saveActiveBillToMemory(silent = false) {
       if (activeBill.items.length === 0) return false;
 
-      activeBill.customerName = document.getElementById('custNameInput').value.trim();
-      activeBill.paymentMode = document.getElementById('paymentModeSelect').value;
+      const custName = document.getElementById('custNameInput').value.trim();
+      const isUdhar = activeBill.isUdhar;
+      const payMode = isUdhar ? 'Credit' : document.getElementById('paymentModeSelect').value;
+
+      if ((isUdhar || payMode === 'Partial') && !custName) {
+        alert(isUdhar 
+          ? 'उधार (Credit) बिल बनाने के लिए ग्राहक का नाम डालना अनिवार्य है!' 
+          : 'आंशिक भुगतान (Partial) बिल बनाने के लिए ग्राहक का नाम डालना अनिवार्य है!');
+        document.getElementById('custNameInput').focus();
+        document.getElementById('custNameInput').classList.add('border-red-500');
+        return false;
+      }
+
+      activeBill.customerName = custName;
+      activeBill.paymentMode = payMode;
       activeBill.totalQty = activeBill.items.reduce((sum, it) => sum + it.qty, 0);
       activeBill.grandTotal = activeBill.items.reduce((sum, it) => sum + it.total, 0);
 
-      const prefix = receiptConfig.billPrefix || 'Bill #';
-      if (editingSavedBillId) {
-        const bIndex = savedBills.findIndex(b => b.id === editingSavedBillId);
-        if (bIndex >= 0) {
-          savedBills[bIndex] = { ...activeBill, id: editingSavedBillId };
-        }
-        if (!silent) alert(`${prefix}${activeBill.billNo} updated successfully!`);
-      } else {
-        activeBill.id = 'BILL_' + Date.now();
-        activeBill.date = new Date().toISOString();
-        savedBills.unshift({ ...activeBill });
-        storeSettings.nextBillNum += 1;
-        document.getElementById('displayBillNum').innerText = `${prefix}${String(storeSettings.nextBillNum).padStart(2, '0')}`;
-        if (!silent) alert(`${prefix}${activeBill.billNo} saved successfully!`);
+      if (payMode === 'Cash+UPI') {
+        const cashVal = parseFloat(document.getElementById('splitCashAmount').value) || 0;
+        const upiVal = parseFloat(document.getElementById('splitUpiAmount').value) || 0;
+        activeBill.splitCash = cashVal;
+        activeBill.splitUpi = upiVal;
+      } else if (payMode === 'Partial') {
+        updatePartialCalculations();
       }
+
+      const prefix = receiptConfig.billPrefix || 'Bill #';
+      const currentSnapshot = getBillSnapshotString(activeBill);
+      const targetId = activeBill.id || editingSavedBillId;
+
+      // 1. Agar bill pehle se savedBills me mojood hai
+      if (targetId) {
+        const bIndex = savedBills.findIndex(b => b.id === targetId);
+        if (bIndex >= 0) {
+          const existingSnapshot = getBillSnapshotString(savedBills[bIndex]);
+          
+          // Agar bill me koi badlaav nahi hua hai
+          if (currentSnapshot === existingSnapshot) {
+            if (!silent) {
+              alert(`⚠️ चेतावनी: यह बिल (${prefix}${activeBill.billNo}) पहले से ही सेव है!\n(This bill is already saved)`);
+            }
+            return 'ALREADY_SAVED';
+          }
+
+          // Agar bill me badlaav hua hai to usi bill ko update karein (No duplicate)
+          savedBills[bIndex] = { ...activeBill, id: targetId };
+          
+          if (activeBill.paymentMode === 'Credit' || (activeBill.paymentMode === 'Partial' && activeBill.partialDue > 0)) {
+            updateBillInKhata(savedBills[bIndex]);
+          }
+
+          saveAllToStorage();
+          if (!silent) alert(`${prefix}${activeBill.billNo} सफलतापूर्वक अपडेट हो गया! (Bill updated successfully)`);
+          return true;
+        }
+      }
+
+      // 2. Fresh New Bill save karna
+      const newBillId = 'BILL_' + Date.now();
+      activeBill.id = newBillId;
+      editingSavedBillId = newBillId;
+      activeBill.date = new Date().toISOString();
+
+      savedBills.unshift({ ...activeBill });
+      storeSettings.nextBillNum += 1;
       saveAllToStorage();
+
+      if (activeBill.paymentMode === 'Credit' || (activeBill.paymentMode === 'Partial' && activeBill.partialDue > 0)) {
+        syncBillToKhata(activeBill);
+      }
+
+      if (!silent) alert(`${prefix}${activeBill.billNo} सफलतापूर्वक सेव हो गया!`);
       return true;
+    }
+
+    function syncBillToKhata(bill) {
+      const cName = bill.customerName.trim();
+      if (!cName) return;
+
+      if (!khataLedger[cName]) {
+        khataLedger[cName] = {
+          customerName: cName,
+          totalDue: 0,
+          createdDate: new Date().toISOString(),
+          bills: [],
+          payments: []
+        };
+      }
+
+      const dueToAdd = (bill.paymentMode === 'Partial') ? (bill.partialDue || 0) : bill.grandTotal;
+
+      if (!khataLedger[cName].bills.some(b => b.id === bill.id)) {
+        khataLedger[cName].bills.unshift({
+          id: bill.id,
+          billNo: bill.billNo,
+          date: bill.date,
+          amount: bill.grandTotal,
+          dueAmount: dueToAdd,
+          paidAmount: (bill.paymentMode === 'Partial') ? (bill.partialPaid || 0) : 0,
+          isPartial: (bill.paymentMode === 'Partial'),
+          itemsCount: bill.items.length
+        });
+        khataLedger[cName].totalDue += dueToAdd;
+      }
+    }
+
+    function updateBillInKhata(bill) {
+      const cName = bill.customerName.trim();
+      if (!cName || !khataLedger[cName]) return;
+
+      const c = khataLedger[cName];
+      const bIdx = (c.bills || []).findIndex(b => b.id === bill.id);
+      const newDue = (bill.paymentMode === 'Partial') ? (bill.partialDue || 0) : bill.grandTotal;
+
+      if (bIdx >= 0) {
+        const oldDue = c.bills[bIdx].dueAmount !== undefined ? c.bills[bIdx].dueAmount : c.bills[bIdx].amount;
+        c.totalDue = Math.max(0, (c.totalDue - oldDue) + newDue);
+        c.bills[bIdx] = {
+          id: bill.id,
+          billNo: bill.billNo,
+          date: bill.date,
+          amount: bill.grandTotal,
+          dueAmount: newDue,
+          paidAmount: (bill.paymentMode === 'Partial') ? (bill.partialPaid || 0) : 0,
+          isPartial: (bill.paymentMode === 'Partial'),
+          itemsCount: bill.items.length
+        };
+      } else {
+        syncBillToKhata(bill);
+      }
     }
 
     function handleSaveBillClick() {
       playClickSound();
       if (activeBill.items.length === 0) {
-        alert('Please add at least one item before saving.');
+        alert('कृपया बिल सेव करने से पहले कम से कम एक आइटम जोड़ें');
         return;
       }
-      const savedBillCopy = JSON.parse(JSON.stringify(activeBill));
-      savedBillCopy.customerName = document.getElementById('custNameInput').value.trim();
-      savedBillCopy.paymentMode = document.getElementById('paymentModeSelect').value;
 
-      if (saveActiveBillToMemory(false)) {
-        openReceiptModal(savedBillCopy);
-        initNewBill();
+      const result = saveActiveBillToMemory(false);
+      if (result === true) {
+        openReceiptModal(activeBill);
       }
+    }
+
+    /* ==========================================================================
+       KHATA LEDGER MODAL & PAYMENT
+       ========================================================================== */
+    function openKhataModal() {
+      playClickSound();
+      renderKhataList();
+      document.getElementById('khataModal').classList.remove('hidden');
+    }
+
+    function closeKhataModal() {
+      document.getElementById('khataModal').classList.add('hidden');
+    }
+
+    function renderKhataList() {
+      const container = document.getElementById('khataCustomerList');
+      const search = (document.getElementById('khataSearchInput').value || '').toLowerCase().trim();
+      container.innerHTML = '';
+
+      const customers = Object.values(khataLedger).filter(c => c.customerName.toLowerCase().includes(search));
+
+      let totalCustCount = Object.keys(khataLedger).length;
+      let totalDueAll = Object.values(khataLedger).reduce((sum, c) => sum + (c.totalDue || 0), 0);
+
+      document.getElementById('khataTotalCustomers').innerText = totalCustCount;
+      document.getElementById('khataTotalOutstanding').innerText = `₹${totalDueAll}`;
+
+      if (customers.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-gray-500 text-xs">कोई उधार खाता नहीं मिला</div>`;
+        return;
+      }
+
+      customers.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'p-3 bg-[#18181b] rounded-xl border border-gray-800 flex items-center justify-between text-xs hover:border-gray-700 transition cursor-pointer';
+        card.onclick = () => openKhataDetailModal(c.customerName);
+        card.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-red-500/20 text-red-400 font-bold flex items-center justify-center text-sm font-mono-num">
+              ${c.customerName.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h4 class="text-white font-bold text-sm leading-tight">${c.customerName}</h4>
+              <p class="text-[10px] text-gray-400 mt-0.5">कुल बिल: ${c.bills ? c.bills.length : 0}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-gray-400 block">बकाया:</span>
+            <span class="text-base font-black text-red-400 font-mono-num">₹${c.totalDue || 0}</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function openKhataDetailModal(customerName) {
+      selectedKhataCustomer = customerName;
+      const c = khataLedger[customerName];
+      if (!c) return;
+
+      document.getElementById('kdCustomerName').innerText = c.customerName;
+      document.getElementById('kdCustomerBalance').innerText = `₹${c.totalDue || 0}`;
+      document.getElementById('kdPaymentAmount').value = '';
+
+      const historyContainer = document.getElementById('kdBillsHistory');
+      historyContainer.innerHTML = '<span class="text-[10px] uppercase font-bold text-gray-400 block mb-1">बिल एवं भुगतान हिस्ट्री:</span>';
+
+      const timeline = [];
+      (c.bills || []).forEach(b => timeline.push({ type: 'bill', ...b }));
+      (c.payments || []).forEach(p => timeline.push({ type: 'payment', ...p }));
+
+      timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      if (timeline.length === 0) {
+        historyContainer.innerHTML += `<div class="text-center text-gray-500 text-xs py-4">कोई प्रविष्टि नहीं</div>`;
+      } else {
+        timeline.forEach(item => {
+          const d = new Date(item.date);
+          const dStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+          const row = document.createElement('div');
+          if (item.type === 'bill') {
+            const isPart = item.isPartial;
+            row.className = 'p-2.5 rounded-lg bg-[#141417] border border-gray-800 flex justify-between items-center text-xs';
+            row.innerHTML = `
+              <div>
+                <span class="font-bold text-amber-400">${isPart ? 'आंशिक बिल' : 'उधार बिल'} #${item.billNo}</span>
+                <div class="text-[10px] text-gray-500">${dStr}</div>
+                ${isPart ? `<div class="text-[9px] text-emerald-400">जमा: ₹${item.paidAmount} | बिल कुल: ₹${item.amount}</div>` : ''}
+              </div>
+              <div class="text-right">
+                <span class="font-black text-red-400 font-mono-num block">+₹${item.dueAmount || item.amount}</span>
+                ${isPart ? `<span class="text-[9px] text-gray-400">उधार बाकी</span>` : ''}
+              </div>
+            `;
+          } else {
+            row.className = 'p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-500/30 flex justify-between items-center text-xs';
+            row.innerHTML = `
+              <div>
+                <span class="font-bold text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i>रुपये जमा (Paid)</span>
+                <div class="text-[10px] text-gray-500">${dStr}</div>
+              </div>
+              <span class="font-black text-emerald-400 font-mono-num">-₹${item.amount}</span>
+            `;
+          }
+          historyContainer.appendChild(row);
+        });
+      }
+
+      document.getElementById('khataDetailModal').classList.remove('hidden');
+    }
+
+    function closeKhataDetailModal() {
+      document.getElementById('khataDetailModal').classList.add('hidden');
+      selectedKhataCustomer = null;
+      renderKhataList();
+    }
+
+    function submitKhataPayment() {
+      playClickSound();
+      if (!selectedKhataCustomer || !khataLedger[selectedKhataCustomer]) return;
+
+      const amtInput = document.getElementById('kdPaymentAmount');
+      const amt = parseFloat(amtInput.value) || 0;
+
+      if (amt <= 0) {
+        alert('कृपया मान्य जमा राशि दर्ज करें');
+        return;
+      }
+
+      const c = khataLedger[selectedKhataCustomer];
+      if (!c.payments) c.payments = [];
+
+      c.payments.unshift({
+        id: 'PAY_' + Date.now(),
+        date: new Date().toISOString(),
+        amount: amt
+      });
+
+      c.totalDue = Math.max(0, (c.totalDue || 0) - amt);
+      saveAllToStorage();
+
+      alert(`₹${amt} सफलतापूर्वक जमा दर्ज किए गए!`);
+      openKhataDetailModal(selectedKhataCustomer);
     }
 
     function cancelEditingBill() {
@@ -1319,8 +2113,29 @@
 
       document.getElementById('displayBillNum').innerText = `${prefix}${String(bill.billNo).padStart(2, '0')}`;
       document.getElementById('custNameInput').value = bill.customerName || '';
-      document.getElementById('paymentModeSelect').value = bill.paymentMode || 'Cash';
       
+      if (bill.paymentMode === 'Credit') {
+        activeBill.isUdhar = true;
+      } else {
+        activeBill.isUdhar = false;
+        document.getElementById('paymentModeSelect').value = bill.paymentMode || 'Cash';
+      }
+      updateUdharUI();
+
+      if (bill.paymentMode === 'Cash+UPI') {
+        document.getElementById('splitCashAmount').value = bill.splitCash || 0;
+        document.getElementById('splitUpiAmount').value = bill.splitUpi || 0;
+      } else if (bill.paymentMode === 'Partial') {
+        document.getElementById('partialCashInput').value = bill.partialCash || '';
+        document.getElementById('partialUpiInput').value = bill.partialUpi || '';
+        if (bill.partialType) {
+          const radio = document.querySelector(`input[name="partialMode"][value="${bill.partialType}"]`);
+          if (radio) radio.checked = true;
+          onPartialModeTypeChange(bill.partialType);
+        }
+        updatePartialCalculations();
+      }
+
       closeReportsModal();
       renderActiveBillUI();
     }
@@ -1356,6 +2171,8 @@
       activeBill.items[activeEditingItemIndex].total = Math.round(qty * rate * 100) / 100;
       closeEditItemModal();
       renderActiveBillUI();
+      if (activeBill.paymentMode === 'Cash+UPI') syncSplitAmountsToTotal();
+      else if (activeBill.paymentMode === 'Partial') updatePartialCalculations();
     }
 
     function deleteActiveBillItem() {
@@ -1363,153 +2180,8 @@
       activeBill.items.splice(activeEditingItemIndex, 1);
       closeEditItemModal();
       renderActiveBillUI();
-    }
-
-    function toggleRecheckMode() {
-      playClickSound();
-      const bill = currentViewingBill || activeBill;
-      if (!bill || !bill.items || bill.items.length === 0) {
-        alert("No items in bill to recheck.");
-        return;
-      }
-
-      isRechecking = !isRechecking;
-      const container = document.getElementById('recheckContainer');
-      const paper = document.getElementById('thermalReceiptPaper');
-      const btnText = document.getElementById('recheckBtnText');
-      const badge = document.getElementById('recheckStatusBadge');
-
-      if (isRechecking) {
-        btnText.innerText = "Done Recheck";
-        container.classList.remove('hidden');
-        paper.classList.add('opacity-40');
-        badge.classList.remove('hidden');
-
-        recheckItemsState = bill.items.map((it, idx) => {
-          const existing = recheckItemsState.find(e => e.id === it.id);
-          return {
-            ...it,
-            originalIndex: idx,
-            isChecked: existing ? existing.isChecked : false
-          };
-        });
-
-        renderRecheckItemsUI();
-      } else {
-        btnText.innerText = "Recheck Entry";
-        container.classList.add('hidden');
-        paper.classList.remove('opacity-40');
-        badge.classList.add('hidden');
-      }
-    }
-
-    function renderRecheckItemsUI() {
-      const listEl = document.getElementById('recheckItemsList');
-      if (!listEl) return;
-      listEl.innerHTML = '';
-
-      const sorted = [...recheckItemsState].sort((a, b) => {
-        return (a.isChecked === b.isChecked) ? 0 : a.isChecked ? 1 : -1;
-      });
-
-      const checkedCount = recheckItemsState.filter(i => i.isChecked).length;
-      document.getElementById('recheckCount').innerText = checkedCount;
-      document.getElementById('recheckTotalCount').innerText = recheckItemsState.length;
-
-      sorted.forEach((item) => {
-        const card = document.createElement('div');
-        card.className = `p-2.5 rounded-xl border transition flex flex-col gap-2 ${
-          item.isChecked 
-            ? 'bg-emerald-950/40 border-emerald-500/50 opacity-75' 
-            : 'bg-[#1e1e24] border-gray-700'
-        }`;
-
-        card.innerHTML = `
-          <div class="flex items-center justify-between gap-2">
-            <label class="flex items-center gap-2 cursor-pointer flex-1">
-              <input type="checkbox" ${item.isChecked ? 'checked' : ''} 
-                     onchange="onToggleItemCheck('${item.id}', this.checked)"
-                     class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
-              <span class="font-bold text-xs ${item.isChecked ? 'line-through text-emerald-300' : 'text-white'}">
-                ${item.name}
-              </span>
-            </label>
-            <span class="text-amber-400 font-mono-num font-extrabold text-xs">
-              ${item.total}
-            </span>
-          </div>
-
-          <div class="flex items-center gap-2 pt-1 border-t border-gray-800 text-[11px]">
-            <div class="flex items-center gap-1">
-              <span class="text-gray-400">Qty:</span>
-              <input type="number" min="1" value="${item.qty}" 
-                     id="recheckQty_${item.id}"
-                     onchange="updateInlineRecheckItem('${item.id}')"
-                     class="w-14 bg-[#121215] border border-gray-700 rounded px-1 py-0.5 text-white font-mono-num text-center outline-none focus:border-amber-500">
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="text-gray-400">Rate:</span>
-              <input type="number" min="0" value="${item.rate}" 
-                     id="recheckRate_${item.id}"
-                     onchange="updateInlineRecheckItem('${item.id}')"
-                     class="w-16 bg-[#121215] border border-gray-700 rounded px-1 py-0.5 text-white font-mono-num text-center outline-none focus:border-amber-500">
-            </div>
-            <button onclick="updateInlineRecheckItem('${item.id}')" class="ml-auto px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-semibold text-[10px]">
-              Sync
-            </button>
-          </div>
-        `;
-
-        listEl.appendChild(card);
-      });
-    }
-
-    function onToggleItemCheck(itemId, checked) {
-      playClickSound();
-      const target = recheckItemsState.find(it => it.id === itemId);
-      if (target) {
-        target.isChecked = checked;
-        renderRecheckItemsUI();
-      }
-    }
-
-    function updateInlineRecheckItem(itemId) {
-      const qtyInput = document.getElementById(`recheckQty_${itemId}`);
-      const rateInput = document.getElementById(`recheckRate_${itemId}`);
-      if (!qtyInput || !rateInput) return;
-
-      const newQty = parseFloat(qtyInput.value) || 1;
-      const newRate = parseFloat(rateInput.value) || 0;
-      const newTotal = Math.round(newQty * newRate * 100) / 100;
-
-      const stateItem = recheckItemsState.find(it => it.id === itemId);
-      if (stateItem) {
-        stateItem.qty = newQty;
-        stateItem.rate = newRate;
-        stateItem.total = newTotal;
-      }
-
-      const bill = currentViewingBill || activeBill;
-      const billItem = bill.items.find(it => it.id === itemId);
-      if (billItem) {
-        billItem.qty = newQty;
-        billItem.rate = newRate;
-        billItem.total = newTotal;
-
-        bill.totalQty = bill.items.reduce((sum, it) => sum + it.qty, 0);
-        bill.grandTotal = bill.items.reduce((sum, it) => sum + it.total, 0);
-
-        if (bill.id && savedBills.some(b => b.id === bill.id)) {
-          const idx = savedBills.findIndex(b => b.id === bill.id);
-          if (idx >= 0) savedBills[idx] = { ...bill };
-          saveAllToStorage();
-        }
-
-        populateReceiptModalContent(bill);
-        renderActiveBillUI();
-      }
-
-      renderRecheckItemsUI();
+      if (activeBill.paymentMode === 'Cash+UPI') syncSplitAmountsToTotal();
+      else if (activeBill.paymentMode === 'Partial') updatePartialCalculations();
     }
 
     function getFontFamilyCSS(val) {
@@ -1520,7 +2192,7 @@
     }
 
     /* ==========================================================================
-       DYNAMIC RECEIPT GENERATION ENGINE (FULL 3-INCH & EXTRA BOLD RECIPIENT TOGGLES)
+       RECEIPT DISPLAY ENGINE
        ========================================================================== */
     function populateReceiptModalContent(billData) {
       const data = billData || activeBill;
@@ -1528,7 +2200,7 @@
         data.customerName = document.getElementById('custNameInput').value.trim();
       }
       if (!data.paymentMode) {
-        data.paymentMode = document.getElementById('paymentModeSelect').value;
+        data.paymentMode = activeBill.isUdhar ? 'Credit' : document.getElementById('paymentModeSelect').value;
       }
 
       currentViewingBill = data;
@@ -1539,12 +2211,12 @@
       paper.style.maxWidth = is58 ? '260px' : '340px';
       paper.style.fontFamily = getFontFamilyCSS(cfg.fontFamily);
 
-      // Header Store Name
+      // Store Name
       const storeNameEl = document.getElementById('rcptStoreName');
       storeNameEl.innerText = cfg.storeName || storeSettings.storeName;
       storeNameEl.className = `${cfg.headerFontSize || 'text-base'} ${cfg.headerWeight || 'font-black'} tracking-wider uppercase`;
 
-      // RECIPIENT: ADDRESS TOGGLE
+      // Address & Phone
       const addrEl = document.getElementById('rcptAddress');
       if (cfg.showAddress !== false && (cfg.address || storeSettings.address)) {
         addrEl.innerText = cfg.address || storeSettings.address;
@@ -1553,22 +2225,12 @@
         addrEl.classList.add('hidden');
       }
 
-      // RECIPIENT: PHONE TOGGLE
       const phoneWrap = document.getElementById('rcptPhoneWrapper');
       if (cfg.showPhone !== false && (cfg.phone || storeSettings.phone)) {
         document.getElementById('rcptPhone').innerText = cfg.phone || storeSettings.phone;
         phoneWrap.classList.remove('hidden');
       } else {
         phoneWrap.classList.add('hidden');
-      }
-
-      // RECIPIENT: GSTIN TOGGLE
-      const gstinWrap = document.getElementById('rcptGstinWrapper');
-      if (cfg.showGstin && cfg.gstin && cfg.gstin.trim().length > 0) {
-        document.getElementById('rcptGstin').innerText = cfg.gstin.trim();
-        gstinWrap.classList.remove('hidden');
-      } else {
-        gstinWrap.classList.add('hidden');
       }
 
       // Bill Number & Date
@@ -1584,7 +2246,7 @@
         dtEl.classList.add('hidden');
       }
 
-      // RECIPIENT: CUSTOMER NAME ROW
+      // Customer Row
       const custRow = document.getElementById('rcptCustRow');
       if (cfg.showCustomerName !== false && data.customerName && data.customerName.trim().length > 0) {
         custRow.innerText = `Cust: ${data.customerName.trim()}`;
@@ -1594,7 +2256,7 @@
         custRow.classList.add('hidden');
       }
 
-      // DYNAMIC COLUMNS (SPREAD FULL 3-INCH WIDTH)
+      // Table Header & Rows
       const tableHeader = document.getElementById('rcptTableHeaderRow');
       const tableContainer = document.getElementById('rcptItemsTable');
       
@@ -1602,52 +2264,33 @@
       const showRate = !!cfg.showRateCol;
 
       if (showRate) {
-        if (showSr) {
-          tableHeader.innerHTML = `<span class="col-span-1">SR</span><span class="col-span-5 truncate">ITEM</span><span class="col-span-2 text-center">QTY</span><span class="col-span-2 text-right">RATE</span><span class="col-span-2 text-right">TOTAL</span>`;
-        } else {
-          tableHeader.innerHTML = `<span class="col-span-6 truncate">ITEM</span><span class="col-span-2 text-center">QTY</span><span class="col-span-2 text-right">RATE</span><span class="col-span-2 text-right">TOTAL</span>`;
-        }
+        tableHeader.innerHTML = showSr 
+          ? `<span class="col-span-1">SR</span><span class="col-span-5 truncate">ITEM</span><span class="col-span-2 text-center">QTY</span><span class="col-span-2 text-right">RATE</span><span class="col-span-2 text-right">TOTAL</span>`
+          : `<span class="col-span-6 truncate">ITEM</span><span class="col-span-2 text-center">QTY</span><span class="col-span-2 text-right">RATE</span><span class="col-span-2 text-right">TOTAL</span>`;
       } else {
-        if (showSr) {
-          tableHeader.innerHTML = `<span class="col-span-2">SR</span><span class="col-span-5 truncate">ITEM</span><span class="col-span-2 text-center">QTY</span><span class="col-span-3 text-right">TOTAL</span>`;
-        } else {
-          tableHeader.innerHTML = `<span class="col-span-7 truncate">ITEM</span><span class="col-span-2 text-center">QTY</span><span class="col-span-3 text-right">TOTAL</span>`;
-        }
+        tableHeader.innerHTML = showSr 
+          ? `<span class="col-span-2">SR</span><span class="col-span-5 truncate">ITEM</span><span class="col-span-2 text-center">QTY</span><span class="col-span-3 text-right">TOTAL</span>`
+          : `<span class="col-span-7 truncate">ITEM</span><span class="col-span-2 text-center">QTY</span><span class="col-span-3 text-right">TOTAL</span>`;
       }
 
       tableContainer.innerHTML = '';
       let totalQty = 0;
       let grandTotal = 0;
 
-      let rowSpacingClass = 'py-0.5';
-      if (cfg.rowPadding === 'compact') rowSpacingClass = 'py-0';
-      if (cfg.rowPadding === 'spacious') rowSpacingClass = 'py-1.5';
-
-      let borderDividerClass = '';
-      if (cfg.rowDividers === 'dotted') borderDividerClass = 'border-b border-dashed border-gray-400';
-      if (cfg.rowDividers === 'solid') borderDividerClass = 'border-b border-gray-300';
-
-      const bodyFontClass = cfg.bodyFontSize || 'text-[11px]';
-      const itemsWeightClass = cfg.itemsWeight || 'font-black';
-
       data.items.forEach((it, idx) => {
         totalQty += it.qty;
         grandTotal += it.total;
         const row = document.createElement('div');
-        row.className = `grid grid-cols-12 leading-tight items-center ${bodyFontClass} ${rowSpacingClass} ${borderDividerClass}`;
+        row.className = `grid grid-cols-12 leading-tight items-center py-0.5 ${cfg.bodyFontSize || 'text-[11px]'}`;
 
         if (showRate) {
-          if (showSr) {
-            row.innerHTML = `<span class="col-span-1 font-bold">${idx + 1}</span><span class="col-span-5 truncate pr-1 ${itemsWeightClass}">${it.name}</span><span class="col-span-2 text-center font-black">${it.qty}</span><span class="col-span-2 text-right font-bold">${it.rate}</span><span class="col-span-2 text-right font-black">${it.total}</span>`;
-          } else {
-            row.innerHTML = `<span class="col-span-6 truncate pr-1 ${itemsWeightClass}">${it.name}</span><span class="col-span-2 text-center font-black">${it.qty}</span><span class="col-span-2 text-right font-bold">${it.rate}</span><span class="col-span-2 text-right font-black">${it.total}</span>`;
-          }
+          row.innerHTML = showSr 
+            ? `<span class="col-span-1 font-bold">${idx + 1}</span><span class="col-span-5 truncate pr-1 ${cfg.itemsWeight}">${it.name}</span><span class="col-span-2 text-center font-black">${it.qty}</span><span class="col-span-2 text-right font-bold">${it.rate}</span><span class="col-span-2 text-right font-black">${it.total}</span>`
+            : `<span class="col-span-6 truncate pr-1 ${cfg.itemsWeight}">${it.name}</span><span class="col-span-2 text-center font-black">${it.qty}</span><span class="col-span-2 text-right font-bold">${it.rate}</span><span class="col-span-2 text-right font-black">${it.total}</span>`;
         } else {
-          if (showSr) {
-            row.innerHTML = `<span class="col-span-2 font-bold">${idx + 1}</span><span class="col-span-5 truncate pr-1 ${itemsWeightClass}">${it.name}</span><span class="col-span-2 text-center font-black">${it.qty}</span><span class="col-span-3 text-right font-black">${it.total}</span>`;
-          } else {
-            row.innerHTML = `<span class="col-span-7 truncate pr-1 ${itemsWeightClass}">${it.name}</span><span class="col-span-2 text-center font-black">${it.qty}</span><span class="col-span-3 text-right font-black">${it.total}</span>`;
-          }
+          row.innerHTML = showSr 
+            ? `<span class="col-span-2 font-bold">${idx + 1}</span><span class="col-span-5 truncate pr-1 ${cfg.itemsWeight}">${it.name}</span><span class="col-span-2 text-center font-black">${it.qty}</span><span class="col-span-3 text-right font-black">${it.total}</span>`
+            : `<span class="col-span-7 truncate pr-1 ${cfg.itemsWeight}">${it.name}</span><span class="col-span-2 text-center font-black">${it.qty}</span><span class="col-span-3 text-right font-black">${it.total}</span>`;
         }
         tableContainer.appendChild(row);
       });
@@ -1660,26 +2303,30 @@
       const gtContainer = document.getElementById('rcptGrandTotalContainer');
       gtContainer.className = `${cfg.totalFontSize || 'text-base'} ${cfg.totalWeight || 'font-black'} tracking-wide`;
 
-      // RECIPIENT: PAYMENT MODE TOGGLE
+      // Payment Mode Row
       const payWrap = document.getElementById('rcptPaymentModeWrapper');
       if (cfg.showPaymentMode !== false) {
-        document.getElementById('rcptPaymentMode').innerText = data.paymentMode || 'Cash';
+        if (data.paymentMode === 'Cash+UPI') {
+          document.getElementById('rcptPaymentMode').innerText = `Cash ₹${data.splitCash || 0} + UPI ₹${data.splitUpi || 0}`;
+        } else if (data.paymentMode === 'Credit') {
+          document.getElementById('rcptPaymentMode').innerText = 'Credit (उधार)';
+        } else if (data.paymentMode === 'Partial') {
+          document.getElementById('rcptPaymentMode').innerText = `Partial (Paid: ₹${data.partialPaid || 0} | Due: ₹${data.partialDue || 0})`;
+        } else {
+          document.getElementById('rcptPaymentMode').innerText = data.paymentMode || 'Cash';
+        }
         payWrap.classList.remove('hidden');
       } else {
         payWrap.classList.add('hidden');
       }
 
-      // RECIPIENT: FOOTER NOTE TOGGLE
+      // Footer Note
       const footerSec = document.getElementById('rcptFooterSection');
       if (cfg.showFooter !== false && (cfg.footerNote && cfg.footerNote.trim().length > 0)) {
         document.getElementById('rcptFooterNote').innerText = cfg.footerNote;
         footerSec.classList.remove('hidden');
       } else {
         footerSec.classList.add('hidden');
-      }
-
-      if (isRechecking) {
-        renderRecheckItemsUI();
       }
     }
 
@@ -1689,9 +2336,6 @@
     }
     function closeReceiptModal() {
       document.getElementById('receiptModal').classList.add('hidden');
-      if (isRechecking) {
-        toggleRecheckMode();
-      }
     }
 
     /* ==========================================================================
@@ -1771,7 +2415,6 @@
       previewBox.style.fontFamily = getFontFamilyCSS(cfg.fontFamily);
 
       let rowSpacingClass = 'py-0.5';
-      let borderDividerClass = 'border-b border-dashed border-gray-400';
 
       const showSr = cfg.showSrNoCol !== false;
       const showRate = !!cfg.showRateCol;
@@ -1899,7 +2542,147 @@
     }
 
     /* ==========================================================================
-       BLUETOOTH ESC/POS ENGINE (EXTRA BOLD & FULL 3-INCH WIDTH PRINTING)
+       BLUETOOTH 80MM ESC/POS PRINTING
+       ========================================================================== */
+    function buildEscPosBytes(billData, is58mm = false, blankLines = 4) {
+      const data = billData || currentViewingBill || activeBill;
+      const cfg = receiptConfig;
+      const d = data.date ? new Date(data.date) : new Date();
+      const dateStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const totalColumns = is58mm ? 32 : 48;
+      
+      const encoder = new TextEncoder();
+      const bytes = [];
+
+      function pushArr(arr) {
+        for (let b of arr) bytes.push(b);
+      }
+      function pushText(str) {
+        const encoded = encoder.encode(str);
+        for (let b of encoded) bytes.push(b);
+      }
+
+      pushArr([0x1B, 0x40]); 
+      pushArr([0x1B, 0x74, 0x00]); 
+      
+      if (cfg.extraBoldPrint !== false) {
+        pushArr([0x1B, 0x45, 0x01]); 
+        pushArr([0x1B, 0x47, 0x01]); 
+      }
+
+      function pushDivider() {
+        pushArr([0x1B, 0x61, 0x00]);
+        pushText("-".repeat(totalColumns) + "\n");
+      }
+
+      // STORE HEADER
+      pushArr([0x1B, 0x61, 0x01]); 
+      pushArr([0x1D, 0x21, 0x11]); 
+      pushText((cfg.storeName || storeSettings.storeName) + "\n");
+      pushArr([0x1D, 0x21, 0x00]); 
+
+      if (cfg.showAddress !== false && (cfg.address || storeSettings.address)) {
+        pushText((cfg.address || storeSettings.address) + "\n");
+      }
+      if (cfg.showPhone !== false && (cfg.phone || storeSettings.phone)) {
+        pushText("Ph: " + (cfg.phone || storeSettings.phone) + "\n");
+      }
+
+      pushDivider();
+
+      // BILL META
+      pushArr([0x1B, 0x61, 0x00]);
+      const billNoStr = `${cfg.billPrefix || 'Bill #'}${String(data.billNo).padStart(2, '0')}`;
+      if (cfg.showDateTime !== false) {
+        const spaceBetween = totalColumns - billNoStr.length - dateStr.length;
+        pushText(billNoStr + " ".repeat(Math.max(1, spaceBetween)) + dateStr + "\n");
+      } else {
+        pushText(billNoStr + "\n");
+      }
+
+      if (cfg.showCustomerName !== false && data.customerName && data.customerName.trim().length > 0) {
+        pushText("Cust: " + data.customerName.trim() + "\n");
+      }
+
+      pushDivider();
+
+      // COLUMNS
+      let colH = is58mm 
+        ? "SR ITEM                QTY TOTAL"
+        : "SR  ITEM                        QTY       TOTAL";
+      pushText(colH + "\n");
+      pushDivider();
+
+      // ITEMS
+      let totalQty = 0;
+      let grandTotal = 0;
+
+      data.items.forEach((it, idx) => {
+        totalQty += it.qty;
+        grandTotal += it.total;
+
+        let line = "";
+        if (is58mm) {
+          let srStr = String(idx + 1).padEnd(3);
+          let nameStr = (it.name.length > 18 ? it.name.substring(0, 17) + '…' : it.name).padEnd(19);
+          let qtyStr = String(it.qty).padStart(3);
+          let totStr = String(it.total).padStart(7);
+          line = `${srStr}${nameStr}${qtyStr}${totStr}`;
+        } else {
+          let srStr = String(idx + 1).padEnd(4);
+          let nameStr = (it.name.length > 26 ? it.name.substring(0, 25) + '…' : it.name).padEnd(27);
+          let qtyStr = String(it.qty).padStart(4);
+          let totStr = String(it.total).padStart(12);
+          line = `${srStr}${nameStr}${qtyStr}${totStr}`;
+        }
+        pushText(line + "\n");
+      });
+
+      pushDivider();
+
+      // TOTALS
+      const leftSummary = `Items: ${data.items.length} (Qty: ${totalQty})`;
+      const rightSub = `Total: ${grandTotal}`;
+      const sumSpace = totalColumns - leftSummary.length - rightSub.length;
+      pushText(leftSummary + " ".repeat(Math.max(1, sumSpace)) + rightSub + "\n");
+
+      pushDivider();
+
+      // GRAND TOTAL
+      pushArr([0x1B, 0x61, 0x01]);
+      pushArr([0x1D, 0x21, 0x11]);
+      pushText(`GRAND TOTAL: ${grandTotal}\n`);
+      pushArr([0x1D, 0x21, 0x00]);
+
+      if (cfg.showPaymentMode !== false) {
+        if (data.paymentMode === 'Cash+UPI') {
+          pushText(`Mode: Cash Rs.${data.splitCash || 0} + UPI Rs.${data.splitUpi || 0}\n`);
+        } else if (data.paymentMode === 'Credit') {
+          pushText("Payment Mode: Credit (Udhar)\n");
+        } else if (data.paymentMode === 'Partial') {
+          pushText(`Paid: Rs.${data.partialPaid || 0} | Balance: Rs.${data.partialDue || 0}\n`);
+        } else {
+          pushText(`Payment Mode: ${data.paymentMode || 'Cash'}\n`);
+        }
+      }
+
+      if (cfg.showFooter !== false && (cfg.footerNote && cfg.footerNote.trim().length > 0)) {
+        pushArr([0x1B, 0x61, 0x00]);
+        pushDivider();
+        pushArr([0x1B, 0x61, 0x01]);
+        pushText(cfg.footerNote.trim() + "\n");
+      }
+
+      pushArr([0x1B, 0x64, blankLines]);
+      if (storeSettings.autoCut !== false) {
+        pushArr([0x1D, 0x56, 0x42, 0x00]);
+      }
+
+      return new Uint8Array(bytes);
+    }
+
+        /* ==========================================================================
+       BLUETOOTH CONNECTION & HARDWARE ESC/POS ENGINE
        ========================================================================== */
     function updateBtStatusUI(connected, name) {
       const dot = document.getElementById('btStatusDot');
@@ -1911,23 +2694,23 @@
       const settingsBadge = document.getElementById('settingsBtStatusBadge');
 
       if (connected) {
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
-        txt.innerText = 'Connected';
-        dev.innerText = name || 'Bluetooth Thermal Printer';
-        topIcon.className = 'fa-brands fa-bluetooth text-blue-400';
-        topDot.className = 'w-2 h-2 rounded-full bg-emerald-500 absolute top-0.5 right-0.5';
-        actIcon.className = 'fa-brands fa-bluetooth text-emerald-400';
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+        if (txt) txt.innerText = 'Connected';
+        if (dev) dev.innerText = name || 'Bluetooth Thermal Printer';
+        if (topIcon) topIcon.className = 'fa-brands fa-bluetooth text-blue-400';
+        if (topDot) topDot.className = 'w-2 h-2 rounded-full bg-emerald-500 absolute top-0.5 right-0.5';
+        if (actIcon) actIcon.className = 'fa-brands fa-bluetooth text-emerald-400';
         if (settingsBadge) {
           settingsBadge.className = 'text-emerald-400 font-semibold';
           settingsBadge.innerText = `Connected (${name || 'Printer'})`;
         }
       } else {
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-        txt.innerText = 'Disconnected';
-        dev.innerText = name || 'No printer connected';
-        topIcon.className = 'fa-brands fa-bluetooth-b text-gray-400';
-        topDot.className = 'w-2 h-2 rounded-full bg-red-500 absolute top-0.5 right-0.5';
-        actIcon.className = 'fa-brands fa-bluetooth-b text-white';
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
+        if (txt) txt.innerText = 'Disconnected';
+        if (dev) dev.innerText = name || 'No printer connected';
+        if (topIcon) topIcon.className = 'fa-brands fa-bluetooth-b text-gray-400';
+        if (topDot) topDot.className = 'w-2 h-2 rounded-full bg-red-500 absolute top-0.5 right-0.5';
+        if (actIcon) actIcon.className = 'fa-brands fa-bluetooth-b text-white';
         if (settingsBadge) {
           settingsBadge.className = 'text-red-400 font-semibold';
           settingsBadge.innerText = 'Disconnected';
@@ -2025,196 +2808,14 @@
     }
 
     async function ensureBluetoothConnected() {
-      if (bluetoothCharacteristic && bluetoothDevice && bluetoothDevice.gatt.connected) {
+      if (bluetoothCharacteristic && bluetoothDevice && bluetoothDevice.gatt && bluetoothDevice.gatt.connected) {
         return true;
       }
-      if (bluetoothDevice) {
+      if (bluetoothDevice && bluetoothDevice.gatt) {
         const reconnected = await connectToGattServer(bluetoothDevice);
         if (reconnected) return true;
       }
       return await pairWebBluetooth(true);
-    }
-
-    /* ESC/POS BINARY GENERATION (FULL 3-INCH WIDTH & EXTRA BOLD DENSITY) */
-    function buildEscPosBytes(billData, is58mm = false, blankLines = 4) {
-      const data = billData || currentViewingBill || activeBill;
-      const cfg = receiptConfig;
-      const d = data.date ? new Date(data.date) : new Date();
-      const dateStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      const totalColumns = is58mm ? 32 : 48; // 3-inch 80mm has 48 columns full width
-      
-      const encoder = new TextEncoder();
-      const bytes = [];
-
-      function pushArr(arr) {
-        for (let b of arr) bytes.push(b);
-      }
-      function pushText(str) {
-        const encoded = encoder.encode(str);
-        for (let b of encoded) bytes.push(b);
-      }
-
-      // 1. Initialize printer & ESC/POS Defaults
-      pushArr([0x1B, 0x40]); // ESC @ (Reset)
-      pushArr([0x1B, 0x74, 0x00]); // Character code page: PC437
-      
-      // 2. Extra Bold Density Commands
-      if (cfg.extraBoldPrint !== false) {
-        pushArr([0x1B, 0x45, 0x01]); // ESC E 1 (Bold ON)
-        pushArr([0x1B, 0x47, 0x01]); // ESC G 1 (Double strike ON for deep dark thermal ink)
-      }
-
-      // Helper function for full width line divider
-      function pushDivider() {
-        pushArr([0x1B, 0x61, 0x00]); // Left align
-        pushText("-".repeat(totalColumns) + "\n");
-      }
-
-      // 3. STORE HEADER (Centered, Double size for 3 inch)
-      pushArr([0x1B, 0x61, 0x01]); // Center align
-      pushArr([0x1D, 0x21, 0x11]); // Double height & Double width
-      pushText((cfg.storeName || storeSettings.storeName) + "\n");
-      pushArr([0x1D, 0x21, 0x00]); // Standard size
-
-      // RECIPIENT SETTING: SHOW ADDRESS
-      if (cfg.showAddress !== false && (cfg.address || storeSettings.address)) {
-        pushText((cfg.address || storeSettings.address) + "\n");
-      }
-
-      // RECIPIENT SETTING: SHOW PHONE NO
-      if (cfg.showPhone !== false && (cfg.phone || storeSettings.phone)) {
-        pushText("Ph: " + (cfg.phone || storeSettings.phone) + "\n");
-      }
-
-      // RECIPIENT SETTING: SHOW GSTIN
-      if (cfg.showGstin && cfg.gstin && cfg.gstin.trim().length > 0) {
-        pushText("GSTIN: " + cfg.gstin.trim() + "\n");
-      }
-
-      pushDivider();
-
-      // 4. BILL META (Left & Right justified full width)
-      pushArr([0x1B, 0x61, 0x00]); // Left align
-      const billNoStr = `${cfg.billPrefix || 'Bill #'}${String(data.billNo).padStart(2, '0')}`;
-      if (cfg.showDateTime !== false) {
-        const spaceBetween = totalColumns - billNoStr.length - dateStr.length;
-        pushText(billNoStr + " ".repeat(Math.max(1, spaceBetween)) + dateStr + "\n");
-      } else {
-        pushText(billNoStr + "\n");
-      }
-
-      // RECIPIENT SETTING: SHOW CUSTOMER NAME
-      if (cfg.showCustomerName !== false && data.customerName && data.customerName.trim().length > 0) {
-        pushText("Cust: " + data.customerName.trim() + "\n");
-      }
-
-      pushDivider();
-
-      // 5. TABLE HEADER
-      const showSr = cfg.showSrNoCol !== false;
-      const showRate = !!cfg.showRateCol;
-
-      let colH = "";
-      if (is58mm) {
-        // 32-col layout
-        if (showRate) {
-          colH = showSr ? "SR ITEM          QTY  RATE   TOT" : "ITEM             QTY  RATE   TOT";
-        } else {
-          colH = showSr ? "SR ITEM                QTY TOTAL" : "ITEM                   QTY TOTAL";
-        }
-      } else {
-        // Full width 48-col layout for 3-inch (80mm) thermal paper
-        if (showRate) {
-          colH = showSr 
-            ? "SR  ITEM                   QTY   RATE     TOTAL"
-            : "ITEM                       QTY   RATE     TOTAL";
-        } else {
-          colH = showSr 
-            ? "SR  ITEM                        QTY       TOTAL"
-            : "ITEM                            QTY       TOTAL";
-        }
-      }
-      pushText(colH + "\n");
-      pushDivider();
-
-      // 6. TABLE ITEMS (Calculated to span full 3-inch roll)
-      let totalQty = 0;
-      let grandTotal = 0;
-
-      data.items.forEach((it, idx) => {
-        totalQty += it.qty;
-        grandTotal += it.total;
-
-        let line = "";
-        if (is58mm) {
-          let srStr = showSr ? String(idx + 1).padEnd(3) : '';
-          if (showRate) {
-            let nameStr = (it.name.length > 12 ? it.name.substring(0, 11) + '…' : it.name).padEnd(showSr ? 13 : 16);
-            let qtyStr = String(it.qty).padStart(3);
-            let rateStr = String(it.rate).padStart(6);
-            let totStr = String(it.total).padStart(6);
-            line = `${srStr}${nameStr}${qtyStr}${rateStr}${totStr}`;
-          } else {
-            let nameStr = (it.name.length > 18 ? it.name.substring(0, 17) + '…' : it.name).padEnd(showSr ? 19 : 22);
-            let qtyStr = String(it.qty).padStart(3);
-            let totStr = String(it.total).padStart(7);
-            line = `${srStr}${nameStr}${qtyStr}${totStr}`;
-          }
-        } else {
-          // 48-Columns full coverage
-          let srStr = showSr ? String(idx + 1).padEnd(4) : '';
-          if (showRate) {
-            let nameStr = (it.name.length > 20 ? it.name.substring(0, 19) + '…' : it.name).padEnd(showSr ? 21 : 25);
-            let qtyStr = String(it.qty).padStart(4);
-            let rateStr = String(it.rate).padStart(7);
-            let totStr = String(it.total).padStart(10);
-            line = `${srStr}${nameStr}${qtyStr}${rateStr}${totStr}`;
-          } else {
-            let nameStr = (it.name.length > 26 ? it.name.substring(0, 25) + '…' : it.name).padEnd(showSr ? 27 : 31);
-            let qtyStr = String(it.qty).padStart(4);
-            let totStr = String(it.total).padStart(12);
-            line = `${srStr}${nameStr}${qtyStr}${totStr}`;
-          }
-        }
-        pushText(line + "\n");
-      });
-
-      pushDivider();
-
-      // 7. SUMMARY & TOTALS (Full width right aligned total)
-      const leftSummary = `Items: ${data.items.length} (Qty: ${totalQty})`;
-      const rightSub = `Total: ${grandTotal}`;
-      const sumSpace = totalColumns - leftSummary.length - rightSub.length;
-      pushText(leftSummary + " ".repeat(Math.max(1, sumSpace)) + rightSub + "\n");
-
-      pushDivider();
-
-      // 8. GRAND TOTAL (Bold Double Width on 3-inch roll)
-      pushArr([0x1B, 0x61, 0x01]); // Center
-      pushArr([0x1D, 0x21, 0x11]); // Double height & width
-      pushText(`GRAND TOTAL: ${grandTotal}\n`);
-      pushArr([0x1D, 0x21, 0x00]); // Reset size
-
-      // RECIPIENT SETTING: SHOW PAYMENT MODE
-      if (cfg.showPaymentMode !== false) {
-        pushText(`Payment Mode: ${data.paymentMode || 'Cash'}\n`);
-      }
-
-      // RECIPIENT SETTING: SHOW FOOTER NOTE
-      if (cfg.showFooter !== false && (cfg.footerNote && cfg.footerNote.trim().length > 0)) {
-        pushArr([0x1B, 0x61, 0x00]);
-        pushDivider();
-        pushArr([0x1B, 0x61, 0x01]); // Center
-        pushText(cfg.footerNote.trim() + "\n");
-      }
-
-      // 9. Line feeds & Auto-cut
-      pushArr([0x1B, 0x64, blankLines]); // ESC d blank lines
-      if (storeSettings.autoCut !== false) {
-        pushArr([0x1D, 0x56, 0x42, 0x00]); // GS V B 0 (Full Cut)
-      }
-
-      return new Uint8Array(bytes);
     }
 
     async function handleQuickBtPrint(customBill) {
@@ -2228,16 +2829,29 @@
           alert('Please add items to bill before printing.');
           return;
         }
-        activeBill.customerName = document.getElementById('custNameInput').value.trim();
-        activeBill.paymentMode = document.getElementById('paymentModeSelect').value;
+
+        const isUdhar = activeBill.isUdhar;
+        const payMode = isUdhar ? 'Credit' : document.getElementById('paymentModeSelect').value;
+        const custName = document.getElementById('custNameInput').value.trim();
+
+        if ((isUdhar || payMode === 'Partial') && !custName) {
+          alert('उधार या आंशिक भुगतान बिल प्रिंट करने हेतु ग्राहक का नाम आवश्यक है!');
+          document.getElementById('custNameInput').focus();
+          return;
+        }
+
+        activeBill.customerName = custName;
+        activeBill.paymentMode = payMode;
+        if (payMode === 'Cash+UPI') {
+          activeBill.splitCash = parseFloat(document.getElementById('splitCashAmount').value) || 0;
+          activeBill.splitUpi = parseFloat(document.getElementById('splitUpiAmount').value) || 0;
+        } else if (payMode === 'Partial') {
+          updatePartialCalculations();
+        }
         const billSnapshot = JSON.parse(JSON.stringify(activeBill));
-        saveActiveBillToMemory(true);
+        if (!saveActiveBillToMemory(true)) return;
         targetBill = billSnapshot;
         needInitAfter = true;
-      } else {
-        if (!targetBill.customerName) {
-          targetBill.customerName = document.getElementById('custNameInput').value.trim();
-        }
       }
 
       const connected = await ensureBluetoothConnected();
@@ -2263,7 +2877,7 @@
           initNewBill();
           renderActiveBillUI();
         }
-        alert('High quality extra bold bill printed successfully on 3-inch roll!');
+        alert('Bill printed successfully!');
       } catch (e) {
         console.error(e);
         alert('Printer communication error. Retrying connection...');
@@ -2290,7 +2904,7 @@
     }
 
     /* ==========================================================================
-       CANVAS JPEG GENERATION (FULL 3-INCH 576PX & EXTRA BOLD HIGH QUALITY)
+       JPEG CANVAS & SHARING
        ========================================================================== */
     function generateReceiptJpegBlob(targetBill) {
       return new Promise((resolve) => {
@@ -2301,14 +2915,12 @@
 
         const cfg = receiptConfig;
         const scale = 2;
-        // Full width for 3-inch 80mm roll is 576px (or 420px for 58mm)
         const baseWidth = (storeSettings.paperWidth === '58mm') ? 420 : 576;
         const itemsCount = bill.items.length;
         
         let calculatedHeight = 240 + (itemsCount * 38);
         if (cfg.showAddress && cfg.address) calculatedHeight += 24;
         if (cfg.showPhone && cfg.phone) calculatedHeight += 24;
-        if (cfg.showGstin && cfg.gstin) calculatedHeight += 24;
         if (cfg.showCustomerName && bill.customerName) calculatedHeight += 24;
         if (cfg.showPaymentMode) calculatedHeight += 24;
         if (cfg.showFooter && cfg.footerNote) calculatedHeight += 36;
@@ -2321,7 +2933,7 @@
         ctx.fillRect(0, 0, baseWidth, calculatedHeight);
         ctx.fillStyle = '#000000';
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2; // Extra bold stroke for thermal receipt feel
+        ctx.lineWidth = 2;
 
         const fontMono = getFontFamilyCSS(cfg.fontFamily);
         let y = 42;
@@ -2329,25 +2941,16 @@
         ctx.font = `900 28px ${fontMono}`;
         ctx.fillText(storeSettings.storeName, baseWidth / 2, y);
 
-        // RECIPIENT SETTING: ADDRESS
         if (cfg.showAddress !== false && (cfg.address || storeSettings.address)) {
           y += 24;
           ctx.font = `bold 16px ${fontMono}`;
           ctx.fillText(cfg.address || storeSettings.address, baseWidth / 2, y);
         }
 
-        // RECIPIENT SETTING: PHONE
         if (cfg.showPhone !== false && (cfg.phone || storeSettings.phone)) {
           y += 22;
           ctx.font = `bold 15px ${fontMono}`;
           ctx.fillText(`Ph: ${cfg.phone || storeSettings.phone}`, baseWidth / 2, y);
-        }
-
-        // RECIPIENT SETTING: GSTIN
-        if (cfg.showGstin && cfg.gstin) {
-          y += 22;
-          ctx.font = `900 15px ${fontMono}`;
-          ctx.fillText(`GSTIN: ${cfg.gstin}`, baseWidth / 2, y);
         }
 
         y += 18;
@@ -2378,10 +2981,7 @@
 
         let totalQty = 0;
         let grandTotal = 0;
-        const showSr = cfg.showSrNoCol !== false;
-        const showRate = !!cfg.showRateCol;
 
-        // Print items spreading full width
         bill.items.forEach((it, idx) => {
           y += 28;
           totalQty += it.qty;
@@ -2389,21 +2989,13 @@
           
           ctx.textAlign = 'left';
           ctx.font = `900 16px ${fontMono}`;
-          let prefixStr = showSr ? `${idx + 1}. ` : '';
-          ctx.fillText(`${prefixStr}${it.name}`, 25, y);
+          ctx.fillText(`${idx + 1}. ${it.name}`, 25, y);
 
           ctx.textAlign = 'right';
-          if (showRate) {
-            ctx.font = `bold 14px ${fontMono}`;
-            ctx.fillText(`${it.qty} x ${it.rate} = `, baseWidth - 110, y);
-            ctx.font = `900 16px ${fontMono}`;
-            ctx.fillText(`${it.total}`, baseWidth - 25, y);
-          } else {
-            ctx.font = `bold 14px ${fontMono}`;
-            ctx.fillText(`Qty: ${it.qty}`, baseWidth - 120, y);
-            ctx.font = `900 16px ${fontMono}`;
-            ctx.fillText(`${it.total}`, baseWidth - 25, y);
-          }
+          ctx.font = `bold 14px ${fontMono}`;
+          ctx.fillText(`Qty: ${it.qty}`, baseWidth - 120, y);
+          ctx.font = `900 16px ${fontMono}`;
+          ctx.fillText(`${it.total}`, baseWidth - 25, y);
         });
 
         y += 24;
@@ -2424,14 +3016,20 @@
         ctx.font = `900 24px ${fontMono}`;
         ctx.fillText(`GRAND TOTAL : ${grandTotal}`, baseWidth / 2, y);
 
-        // RECIPIENT SETTING: SHOW PAYMENT MODE
         if (cfg.showPaymentMode !== false) {
           y += 24;
           ctx.font = `bold 15px ${fontMono}`;
-          ctx.fillText(`Payment Mode: ${bill.paymentMode || 'Cash'}`, baseWidth / 2, y);
+          if (bill.paymentMode === 'Cash+UPI') {
+            ctx.fillText(`Payment Mode: Cash Rs.${bill.splitCash || 0} + UPI Rs.${bill.splitUpi || 0}`, baseWidth / 2, y);
+          } else if (bill.paymentMode === 'Credit') {
+            ctx.fillText("Payment Mode: Credit (Udhar)", baseWidth / 2, y);
+          } else if (bill.paymentMode === 'Partial') {
+            ctx.fillText(`Paid: Rs.${bill.partialPaid || 0} | Balance: Rs.${bill.partialDue || 0}`, baseWidth / 2, y);
+          } else {
+            ctx.fillText(`Payment Mode: ${bill.paymentMode || 'Cash'}`, baseWidth / 2, y);
+          }
         }
 
-        // RECIPIENT SETTING: SHOW FOOTER NOTE
         if (cfg.showFooter !== false && (cfg.footerNote && cfg.footerNote.trim().length > 0)) {
           y += 24;
           ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(baseWidth - 40, y); ctx.stroke();
@@ -2469,7 +3067,7 @@
     }
 
     /* ==========================================================================
-       INVENTORY & SETTINGS UTILITIES
+       INVENTORY UTILITIES
        ========================================================================== */
     function openInventoryModal() {
       renderInventoryItems();
@@ -2500,10 +3098,10 @@
         itemRow.className = 'p-3 bg-[#18181b] rounded-xl border border-gray-800 flex items-center justify-between text-xs hover:border-gray-700 transition';
         itemRow.innerHTML = `
           <div class="flex-1 pr-2">
-            <span class="text-[9px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded font-bold">${it.category || 'GENERAL'}</span>
+            <span class="text-[9px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded font-bold">${it.category || 'JEANS'}</span>
             <h5 class="text-white font-bold text-sm mt-1">${it.name}</h5>
             <div class="text-gray-400 text-[11px] mt-0.5">
-              Rate: <span class="text-amber-400 font-bold font-mono-num">${it.rate}</span> | Stock: <span class="font-mono-num text-white">${it.stock || 0}</span>
+              Rate: <span class="text-amber-400 font-bold font-mono-num">₹${it.rate}</span> | Stock: <span class="font-mono-num text-white">${it.stock || 50}</span>
             </div>
           </div>
           <div class="flex items-center space-x-1.5 shrink-0">
@@ -2577,6 +3175,9 @@
       renderInventoryItems();
     }
 
+    /* ==========================================================================
+       SETTINGS & REPORTS MODALS
+       ========================================================================== */
     function openSettingsModal() {
       document.getElementById('settingStoreName').value = storeSettings.storeName || 'ADDIS JEANS';
       document.getElementById('settingStoreAddress').value = storeSettings.address || '';
@@ -2627,7 +3228,7 @@
 
       saveAllToStorage();
       closeSettingsModal();
-      alert('Printer & Store configuration saved successfully!');
+      alert('Configuration saved successfully!');
     }
 
     function openReportsModal() {
@@ -2648,15 +3249,38 @@
       const filteredBills = savedBills.filter(bill => bill.date && bill.date.split('T')[0] === selectedDate);
       let totalQty = 0;
       let totalAmount = 0;
+      let totalCash = 0;
+      let totalUpi = 0;
+      let totalCredit = 0;
 
       filteredBills.forEach(b => {
-        totalQty += b.totalQty || b.items.reduce((sum, it) => sum + it.qty, 0);
-        totalAmount += b.grandTotal || b.items.reduce((sum, it) => sum + it.total, 0);
+        const bQty = b.totalQty || b.items.reduce((sum, it) => sum + it.qty, 0);
+        const bTotal = b.grandTotal || b.items.reduce((sum, it) => sum + it.total, 0);
+        totalQty += bQty;
+        totalAmount += bTotal;
+
+        if (b.paymentMode === 'Cash') {
+          totalCash += bTotal;
+        } else if (b.paymentMode === 'UPI') {
+          totalUpi += bTotal;
+        } else if (b.paymentMode === 'Cash+UPI') {
+          totalCash += (b.splitCash || 0);
+          totalUpi += (b.splitUpi || 0);
+        } else if (b.paymentMode === 'Credit') {
+          totalCredit += bTotal;
+        } else if (b.paymentMode === 'Partial') {
+          totalCash += (b.partialCash || 0);
+          totalUpi += (b.partialUpi || 0);
+          totalCredit += (b.partialDue || 0);
+        }
       });
 
       document.getElementById('kpiTotalBills').innerText = filteredBills.length;
       document.getElementById('kpiTotalQty').innerText = totalQty;
-      document.getElementById('kpiTotalAmount').innerText = `${totalAmount}`;
+      document.getElementById('kpiTotalAmount').innerText = `₹${totalAmount}`;
+      document.getElementById('kpiTotalCash').innerText = `₹${totalCash}`;
+      document.getElementById('kpiTotalUpi').innerText = `₹${totalUpi}`;
+      document.getElementById('kpiTotalCredit').innerText = `₹${totalCredit}`;
 
       if (filteredBills.length === 0) {
         listContainer.innerHTML = `<div class="p-6 text-center text-gray-500 text-xs">No bills found for ${selectedDate}</div>`;
@@ -2670,6 +3294,15 @@
         const bQty = bill.totalQty || bill.items.reduce((sum, it) => sum + it.qty, 0);
         const bTotal = bill.grandTotal || bill.items.reduce((sum, it) => sum + it.total, 0);
 
+        let payModeLabel = bill.paymentMode || 'Cash';
+        if (bill.paymentMode === 'Cash+UPI') {
+          payModeLabel = `Cash: ₹${bill.splitCash || 0} + UPI: ₹${bill.splitUpi || 0}`;
+        } else if (bill.paymentMode === 'Credit') {
+          payModeLabel = 'उधार (Credit)';
+        } else if (bill.paymentMode === 'Partial') {
+          payModeLabel = `Partial (जमा: ₹${bill.partialPaid || 0} | उधार: ₹${bill.partialDue || 0})`;
+        }
+
         const card = document.createElement('div');
         card.className = 'bg-[#18181b] p-3 rounded-xl border border-gray-800 space-y-2 text-xs';
         card.innerHTML = `
@@ -2679,11 +3312,13 @@
               <span class="text-gray-400 ml-2 text-[11px]">${timeStr}</span>
               ${bill.customerName ? `<span class="text-emerald-400 ml-2 font-bold">• ${bill.customerName}</span>` : ''}
             </div>
-            <span class="font-bold text-white font-mono-num text-sm">${bTotal}</span>
+            <span class="font-bold text-white font-mono-num text-sm">₹${bTotal}</span>
           </div>
           <div class="text-[11px] text-gray-400 flex justify-between">
             <span>Items: ${bill.items.length} | Qty: ${bQty}</span>
-            <span>${bill.paymentMode || 'Cash'}</span>
+            <span class="${bill.paymentMode === 'Credit' || bill.paymentMode === 'Partial' ? 'text-red-400 font-bold' : 'text-gray-300'}">
+              ${payModeLabel}
+            </span>
           </div>
           <div class="pt-2 border-t border-gray-800 grid grid-cols-4 gap-1.5 font-bold text-[10px]">
             <button onclick="openReceiptModal(savedBills.find(b => b.id === '${bill.id}'))" class="py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 flex items-center justify-center gap-1">
