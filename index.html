@@ -2229,7 +2229,7 @@
         khataLedger[name] = { customerName: name, totalDue: 0, bills: [], payments: [] };
       }
 
-      const dueAmount = (bill.paymentMode === 'Partial') ? (bill.partialDue || 0) : bill.grandTotal;
+      const dueAmount = (bill.paymentMode === 'Partial') ? (bill.partialDue || 0) : ((bill.paymentMode === 'Credit' || bill.isUdhar) ? bill.grandTotal : 0);
       const bList = khataLedger[name].bills;
       const existingIdx = bList.findIndex(b => b.id === bill.id);
 
