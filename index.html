@@ -288,6 +288,12 @@
       <input type="number" id="billDiscountInput" oninput="handleDiscountChange(this.value)" placeholder="0" class="w-14 bg-transparent text-amber-300 font-mono-num text-xs text-right outline-none font-bold">
     </div>
 
+    <!-- Goods Return (G/R Less) Field -->
+    <div class="flex items-center gap-1 bg-[#1b1b1f] px-2 py-0.5 rounded border border-gray-600">
+      <span class="text-[10px] text-red-400 font-semibold">G/R Less ₹:</span>
+      <input type="number" id="billGoodsReturnInput" oninput="handleGoodsReturnChange(this.value)" placeholder="0" class="w-14 bg-transparent text-red-300 font-mono-num text-xs text-right outline-none font-bold">
+    </div>
+
     <div class="text-white font-mono-num text-sm">
       TOTAL: <span class="text-amber-400 text-base" id="summaryGrandTotal">₹0</span>
     </div>
@@ -483,6 +489,11 @@
           <div id="rcptDiscountRow" class="hidden flex justify-between font-black text-[11px] text-gray-900 py-0.5">
             <span>Special Discount (छूट):</span>
             <span>-₹<span id="rcptDiscountVal">0</span></span>
+          </div>
+
+          <div id="rcptGoodsReturnRow" class="hidden flex justify-between font-black text-[11px] text-gray-900 py-0.5">
+            <span>Goods Return (G/R Less):</span>
+            <span>-₹<span id="rcptGoodsReturnVal">0</span></span>
           </div>
 
           <div class="border-b-2 border-dashed border-gray-800 my-2"></div>
@@ -854,11 +865,15 @@
           <span class="text-base font-black text-red-400 font-mono-num" id="kdCustomerBalance">₹0</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <button onclick="printKhataStatement(selectedKhataCustomer)" class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1 shadow">
+          <button onclick="openOpeningBalanceModal()" class="px-2 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1 shadow" title="Set Opening Balance">
+            <i class="fa-solid fa-scale-balanced"></i>
+            <span>Open Bal</span>
+          </button>
+          <button onclick="printKhataStatement(selectedKhataCustomer)" class="px-2 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1 shadow">
             <i class="fa-solid fa-print"></i>
             <span>Print</span>
           </button>
-          <button onclick="shareKhataStatementWhatsApp(selectedKhataCustomer)" class="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shadow">
+          <button onclick="shareKhataStatementWhatsApp(selectedKhataCustomer)" class="px-2 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shadow">
             <i class="fa-brands fa-whatsapp text-sm"></i>
             <span>WhatsApp</span>
           </button>
@@ -877,7 +892,7 @@
         </div>
       </div>
 
-      <div class="p-3 bg-[#1e1e24] border-b border-gray-800 space-y-2 text-xs">
+      <div class="p-3 bg-[#1e1e24] border-b border-gray-800 space-y-2 text-xs shrink-0">
         <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1">
           <i class="fa-solid fa-hand-holding-dollar"></i> पेमेंट जमा करें (Payment Entry)
         </span>
@@ -889,13 +904,17 @@
           </div>
           <div>
             <label class="text-[10px] text-gray-400 font-semibold block mb-0.5">Payment Mode:</label>
-            <select id="kdPaymentMode" class="w-full bg-[#121215] border border-gray-700 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-emerald-500">
+            <select id="kdPaymentMode" onchange="onKdPaymentModeChange(this.value)" class="w-full bg-[#121215] border border-gray-700 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-emerald-500">
               <option value="Cash">Cash (नकद)</option>
               <option value="UPI">UPI (ऑनलाइन)</option>
-              <option value="Bank">Bank / Cheque</option>
-              <option value="Discount">कसर / छूट</option>
+              <option value="Custom">Custom (मैनुअल विवरण)</option>
             </select>
           </div>
+        </div>
+
+        <!-- Custom Payment Detail Note Input -->
+        <div id="kdCustomNoteRow" class="hidden pt-1">
+          <input type="text" id="kdCustomNoteInput" placeholder="विवरण लिखें (e.g. माल वापसी / अन्य)..." class="w-full bg-[#121215] border border-gray-700 rounded-lg px-2.5 py-1 text-white text-xs outline-none focus:border-emerald-500">
         </div>
 
         <div class="flex gap-2 pt-1">
@@ -1400,6 +1419,7 @@
         splitCash: 0,
         splitUpi: 0,
         discount: 0,
+        goodsReturn: 0,
         partialPaid: 0,
         partialDue: 0,
         subTotal: 0,
@@ -1672,7 +1692,8 @@
       });
 
       const disc = activeBill.discount || 0;
-      const grandTotal = Math.max(0, subTotal - disc);
+      const grLess = activeBill.goodsReturn || 0;
+      const grandTotal = Math.max(0, subTotal - disc - grLess);
 
       activeBill.subTotal = subTotal;
       activeBill.grandTotal = grandTotal;
@@ -1856,6 +1877,7 @@
       document.getElementById('custNameInput').value = bill.customerName || '';
       document.getElementById('custMobileInput').value = bill.customerMobile || '';
       document.getElementById('billDiscountInput').value = bill.discount || '';
+      document.getElementById('billGoodsReturnInput').value = bill.goodsReturn || '';
 
       if (bill.paymentMode === 'Credit') {
         activeBill.isUdhar = true;
@@ -1908,7 +1930,90 @@
     }
 
     function handleCustomerNameInput(val) {
+      const q = val.trim().toLowerCase();
       activeBill.customerName = val.trim();
+
+      const dropdown = document.getElementById('customerSuggestDropdown');
+      if (!dropdown) return;
+
+      if (!q) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+      }
+
+      // Collect unique customer data from savedBills and khataLedger
+      const customerMap = {};
+      if (savedBills && savedBills.length > 0) {
+        savedBills.forEach(b => {
+          if (b.customerName) {
+            const nameKey = b.customerName.trim();
+            if (!customerMap[nameKey]) {
+              customerMap[nameKey] = { mobile: b.customerMobile || '', due: 0 };
+            } else if (!customerMap[nameKey].mobile && b.customerMobile) {
+              customerMap[nameKey].mobile = b.customerMobile;
+            }
+          }
+        });
+      }
+      if (khataLedger) {
+        Object.values(khataLedger).forEach(c => {
+          if (c.customerName) {
+            const nameKey = c.customerName.trim();
+            if (!customerMap[nameKey]) {
+              customerMap[nameKey] = { mobile: '', due: c.totalDue || 0 };
+            } else {
+              customerMap[nameKey].due = c.totalDue || 0;
+            }
+          }
+        });
+      }
+
+      const matches = Object.entries(customerMap).filter(([name]) => name.toLowerCase().includes(q));
+
+      if (matches.length === 0) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+      }
+
+      dropdown.innerHTML = '';
+      matches.forEach(([name, data]) => {
+        const item = document.createElement('div');
+        item.className = 'px-3 py-2 hover:bg-[#27272f] cursor-pointer text-xs flex items-center justify-between transition';
+        item.innerHTML = `
+          <div>
+            <span class="font-bold text-white block">${name}</span>
+            <span class="text-[10px] text-gray-400">${data.mobile ? ('📱 ' + data.mobile) : ''}</span>
+          </div>
+          <div class="text-right">
+            ${data.due > 0 ? `<span class="text-red-400 font-mono-num font-bold text-[11px] block">Udhar Due: ₹${data.due}</span>` : ''}
+          </div>
+        `;
+        item.onclick = () => {
+          document.getElementById('custNameInput').value = name;
+          activeBill.customerName = name;
+          if (data.mobile) {
+            document.getElementById('custMobileInput').value = data.mobile;
+            activeBill.customerMobile = data.mobile;
+          }
+          dropdown.classList.add('hidden');
+          dropdown.innerHTML = '';
+          showToast('Customer selected: ' + name);
+        };
+        dropdown.appendChild(item);
+      });
+
+      dropdown.classList.remove('hidden');
+
+      const exactMatch = matches.find(([name]) => name.toLowerCase() === q);
+      if (exactMatch && exactMatch[1].mobile) {
+        const mobInput = document.getElementById('custMobileInput');
+        if (mobInput && !mobInput.value.trim()) {
+          mobInput.value = exactMatch[1].mobile;
+          activeBill.customerMobile = exactMatch[1].mobile;
+        }
+      }
     }
 
     /* ==========================================================================
@@ -2238,7 +2343,40 @@
       const paper = document.getElementById('thermalReceiptPaper');
       paper.style.maxWidth = (config.paperWidth === '58mm') ? '260px' : '340px';
 
-      document.getElementById('rcptStoreName').innerText = cfg.storeName || config.storeName;
+      // Header Mode (Logo / Store Name / Both)
+      const logoCont = document.getElementById('rcptLogoContainer');
+      const storeNameEl = document.getElementById('rcptStoreName');
+      if (storeNameEl) storeNameEl.innerText = cfg.storeName || config.storeName;
+
+      if (logoCont && storeNameEl) {
+        if (cfg.headerMode === 'logo') {
+          logoCont.classList.remove('hidden');
+          storeNameEl.classList.add('hidden');
+        } else if (cfg.headerMode === 'name') {
+          logoCont.classList.add('hidden');
+          storeNameEl.classList.remove('hidden');
+        } else { // 'both'
+          logoCont.classList.remove('hidden');
+          storeNameEl.classList.remove('hidden');
+        }
+      }
+
+      // Previous Balance Row for Udhar Customers
+      const prevBalRow = document.getElementById('rcptPreviousBalanceRow');
+      const prevBalVal = document.getElementById('rcptPreviousBalanceVal');
+      if (prevBalRow && prevBalVal && data.customerName) {
+        const cName = data.customerName.trim();
+        const khataCust = khataLedger[cName];
+        const prevDue = khataCust ? (khataCust.totalDue || 0) : 0;
+        if (prevDue > 0) {
+          prevBalVal.innerText = "₹" + prevDue;
+          prevBalRow.classList.remove('hidden');
+        } else {
+          prevBalRow.classList.add('hidden');
+        }
+      } else if (prevBalRow) {
+        prevBalRow.classList.add('hidden');
+      }
       
       const addrEl = document.getElementById('rcptAddress');
       if (cfg.showAddress && (cfg.address || config.address)) {
@@ -2314,6 +2452,14 @@
         discRow.classList.remove('hidden');
       } else {
         discRow.classList.add('hidden');
+      }
+
+      const grRow = document.getElementById('rcptGoodsReturnRow');
+      if (data.goodsReturn > 0) {
+        document.getElementById('rcptGoodsReturnVal').innerText = data.goodsReturn;
+        grRow.classList.remove('hidden');
+      } else {
+        if (grRow) grRow.classList.add('hidden');
       }
 
       document.getElementById('rcptGrandTotal').innerText = "₹" + (data.grandTotal || subTotal);
@@ -2697,6 +2843,9 @@
       historyContainer.innerHTML = '';
 
       const timeline = [];
+      if (c.openingBalance && c.openingBalance > 0) {
+        timeline.push({ type: 'openingBalance', amount: c.openingBalance, date: c.openingBalanceDate || c.bills?.[c.bills.length-1]?.date || new Date().toISOString() });
+      }
       (c.bills || []).forEach(b => {
         if ((!fromDate || b.date >= fromDate) && (!toDate || b.date <= toDate + 'T23:59:59')) {
           timeline.push({ type: 'bill', ...b });
@@ -2710,9 +2859,18 @@
       timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
 
       timeline.forEach(item => {
-        const dStr = new Date(item.date).toLocaleDateString('en-GB');
+        const dStr = item.date ? new Date(item.date).toLocaleDateString('en-GB') : '';
         const row = document.createElement('div');
-        if (item.type === 'bill') {
+        if (item.type === 'openingBalance') {
+          row.className = 'p-2 rounded-lg bg-amber-950/30 border border-amber-500/40 flex justify-between items-center text-xs';
+          row.innerHTML = `
+            <div>
+              <span class="font-black text-amber-400">Opening Balance</span>
+              <div class="text-[9px] text-gray-400">Shuruati Bakaya</div>
+            </div>
+            <span class="font-black text-amber-400 font-mono-num">+₹${item.amount}</span>
+          `;
+        } else if (item.type === 'bill') {
           row.className = 'p-2 rounded-lg bg-[#141417] border border-gray-800 flex justify-between items-center text-xs';
           row.innerHTML = `
             <div>
@@ -2748,6 +2906,7 @@
       const amt = parseFloat(document.getElementById('kdPaymentAmount').value) || 0;
       const customDate = document.getElementById('kdPaymentDate').value;
       const mode = document.getElementById('kdPaymentMode').value;
+      const customNote = document.getElementById('kdCustomNoteInput').value.trim();
 
       if (amt <= 0) {
         showToast('Please enter valid amount');
@@ -2757,16 +2916,18 @@
       const c = khataLedger[selectedKhataCustomer];
       if (!c.payments) c.payments = [];
 
+      const payModeLabel = (mode === 'Custom' && customNote) ? ('Custom: ' + customNote) : mode;
+
       c.payments.unshift({
         id: 'PAY_' + Date.now(),
         amount: amt,
         date: customDate ? new Date(customDate).toISOString() : new Date().toISOString(),
-        mode: mode
+        mode: payModeLabel
       });
 
       c.totalDue = Math.max(0, (c.totalDue || 0) - amt);
       persistAllData();
-      showToast("₹" + amt + " recorded via " + mode);
+      showToast("₹" + amt + " recorded via " + payModeLabel);
       openKhataDetailModal(selectedKhataCustomer);
     }
 
@@ -3082,18 +3243,17 @@
         pushArr([0x1B, 0x40]); // Reset
         pushArr([0x1B, 0x61, 0x01]); // Align Center
 
-        // 1. Print Graphical Logo on Thermal Paper
-        const logoEl = document.getElementById('rcptLogoImg');
-        if (logoEl) {
-          const logoBytes = await getThermalLogoBytes(logoEl, is58mm ? 256 : 384);
-          if (logoBytes && logoBytes.length > 0) {
-            pushArr(logoBytes);
-            pushText("\n");
-          }
-        }
+        // Logo removed per user request
 
         if (receiptConfig.extraBoldPrint !== false) {
           pushArr([0x1B, 0x45, 0x01]); // Bold
+          pushArr([0x1D, 0x21, 0x01]); // Double height text for store name
+        }
+
+        pushText((receiptConfig.storeName || config.storeName) + "\n");
+
+        if (receiptConfig.extraBoldPrint !== false) {
+          pushArr([0x1D, 0x21, 0x00]); // Reset font size
         }
 
         if (receiptConfig.showAddress !== false && (receiptConfig.address || config.address)) {
@@ -3356,7 +3516,49 @@
     function closeSettingsModal() {
       document.getElementById('settingsModal').classList.add('hidden');
     }
-  </script>
+  
+    function onKdPaymentModeChange(mode) {
+      const noteRow = document.getElementById('kdCustomNoteRow');
+      if (mode === 'Custom') {
+        noteRow.classList.remove('hidden');
+      } else {
+        noteRow.classList.add('hidden');
+      }
+    }
+
+    function openOpeningBalanceModal() {
+      if (!selectedKhataCustomer || !khataLedger[selectedKhataCustomer]) return;
+      const c = khataLedger[selectedKhataCustomer];
+      document.getElementById('openingBalInput').value = c.openingBalance || 0;
+      document.getElementById('openingBalanceModal').classList.remove('hidden');
+    }
+
+    function closeOpeningBalanceModal() {
+      document.getElementById('openingBalanceModal').classList.add('hidden');
+    }
+
+    function saveOpeningBalance() {
+      if (!selectedKhataCustomer || !khataLedger[selectedKhataCustomer]) return;
+      const opAmt = parseFloat(document.getElementById('openingBalInput').value) || 0;
+      const c = khataLedger[selectedKhataCustomer];
+      
+      const diff = opAmt - (c.openingBalance || 0);
+      c.openingBalance = opAmt;
+      c.totalDue = Math.max(0, (c.totalDue || 0) + diff);
+      
+      persistAllData();
+      closeOpeningBalanceModal();
+      openKhataDetailModal(selectedKhataCustomer);
+      showToast('Opening balance updated successfully!');
+    }
+
+    function handleGoodsReturnChange(val) {
+      activeBill.goodsReturn = Math.max(0, parseFloat(val) || 0);
+      renderActiveBillUI();
+      if (activeBill.paymentMode === 'Cash+UPI') syncSplitAmountsToTotal();
+      else if (activeBill.paymentMode === 'Partial') updatePartialCalculations();
+    }
+</script>
 
   <!-- THERMAL KHATA STATEMENT SLIP TEMPLATE (Exact 340px Thermal Slip) -->
   <div id="thermalKhataPaper" class="receipt-paper w-full max-w-[340px] p-4 text-[12px] leading-relaxed shadow-lg border border-gray-300 font-bold bg-white text-black hidden">
@@ -3431,6 +3633,26 @@
       <p class="text-[10px] font-black text-gray-900">Thank You! Visit Again 🙏</p>
     </div>
   </div>
+
+  <!-- OPENING BALANCE MODAL -->
+  <div id="openingBalanceModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#1e1e24] border border-amber-500/50 w-full max-w-xs rounded-2xl p-4 shadow-2xl text-xs space-y-3">
+      <div class="flex justify-between items-center pb-2 border-b border-gray-700">
+        <h4 class="font-bold text-white text-sm">Set Opening Balance (शुरुआती बकाया)</h4>
+        <button onclick="closeOpeningBalanceModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div>
+        <label class="block text-gray-400 mb-1">Opening Due Amount (₹)</label>
+        <input type="number" id="openingBalInput" placeholder="0" class="w-full bg-[#141417] border border-gray-700 rounded-lg px-2.5 py-2 text-white font-mono-num outline-none focus:border-amber-500">
+      </div>
+      <div class="pt-2">
+        <button onclick="saveOpeningBalance()" class="w-full py-2.5 rounded-xl bg-amber-500 text-black font-black">
+          Save Opening Balance
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
+
 
 </html>
