@@ -82,6 +82,19 @@
     </button>
   </div>
 
+  <!-- ================= PREVIOUS BILL SUMMARY STRIP (TOPBAR ON SAVING BILL) ================= -->
+  <div id="prevBillTopBar" class="bg-[#141418] border-b border-gray-800 px-3 py-1 flex items-center justify-between text-xs font-bold shrink-0">
+    <div class="flex items-center gap-1.5 text-gray-400">
+      <i class="fa-solid fa-clock-rotate-left text-amber-500 text-xs"></i>
+      <span class="text-[11px] uppercase tracking-wider text-gray-400">Prev Bill</span>
+      <span id="topBarPrevBillNo" class="text-amber-400 font-mono-num font-black text-xs">#--</span>
+    </div>
+    <div class="flex items-center gap-3 font-mono-num text-[11px]">
+      <span class="text-gray-300">Qty: <b id="topBarPrevBillQty" class="text-white text-xs font-black">0</b></span>
+      <span class="text-gray-300">Amount: <b id="topBarPrevBillAmount" class="text-emerald-400 text-xs font-black">₹0</b></span>
+    </div>
+  </div>
+
   <!-- ================= HORIZONTAL SCROLLING SETTING / ACTION BAR ================= -->
   <header class="bg-[#18181b] px-2 py-1.5 border-b border-gray-800 shrink-0 w-full flex items-center space-x-1.5 overflow-x-auto no-scrollbar whitespace-nowrap">
     <!-- Recheck Button (Anytime Accessible) -->
@@ -576,10 +589,10 @@
 
           <div class="border-b-2 border-dashed border-gray-600 my-2"></div>
 
-          <!-- ONLY TOTAL QTY (NO TOTAL ITEMS) -->
+          <!-- TOTAL QTY KE SAMNE TOTAL AMOUNT -->
           <div class="flex justify-between font-black text-[11px]">
             <span>TOTAL QTY: <span id="rcptTotalQty">0</span></span>
-            <span id="rcptSubTotal">₹0</span>
+            <span>TOTAL: <span id="rcptSubTotal">₹0</span></span>
           </div>
 
           <div id="rcptDiscountRow" class="hidden flex justify-between font-black text-[11px] text-gray-900 py-0.5">
@@ -592,28 +605,29 @@
             <span>-₹<span id="rcptGoodsReturnVal">0</span></span>
           </div>
 
+          <!-- USKE NICHE GR LESS DETAILS IN SMALL BOX (Qty x Rate = Amount) -->
+          <div id="rcptGrBox" class="hidden my-2 mx-auto max-w-[260px] border-2 border-black rounded-lg p-2 text-center bg-gray-50 shadow-sm">
+            <div class="text-[10px] font-black uppercase tracking-wider text-black border-b border-gray-400 pb-0.5 mb-1">
+              G/R LESS (माल वापसी)
+            </div>
+            <div id="rcptGrBoxLines" class="space-y-0.5 text-[11px] font-black text-black font-mono-num">
+              <!-- e.g. 5 x 270 = 1350 -->
+            </div>
+            <div id="rcptGrBoxTotalRow" class="hidden border-t border-dashed border-gray-400 pt-1 mt-1 text-[11px] font-black flex justify-between text-black font-mono-num">
+              <span>Total G/R:</span>
+              <span>-₹<span id="rcptGrBoxTotalAmount">0</span></span>
+            </div>
+          </div>
+
           <div class="border-b-2 border-dashed border-gray-800 my-2"></div>
 
+          <!-- USKE NICHE GRAND TOTAL -->
           <div class="text-center py-1">
             <div id="rcptGrandTotalContainer" class="text-base font-black tracking-wide">
               GRAND TOTAL : <span id="rcptGrandTotal">₹0</span>
             </div>
             <div class="text-[10px] font-bold text-gray-700 mt-0.5" id="rcptPaymentModeWrapper">
               Payment Mode: <span id="rcptPaymentMode">Cash</span>
-            </div>
-
-            <!-- Small Box for G/R Bill Details (Qty x Rate = Amount) Under Total Bill Amount -->
-            <div id="rcptGrBox" class="hidden my-2 mx-auto max-w-[260px] border-2 border-black rounded-lg p-2 text-center bg-gray-50 shadow-sm">
-              <div class="text-[10px] font-black uppercase tracking-wider text-black border-b border-gray-400 pb-0.5 mb-1">
-                G/R LESS (माल वापसी)
-              </div>
-              <div id="rcptGrBoxLines" class="space-y-0.5 text-[11px] font-black text-black font-mono-num">
-                <!-- e.g. 5 x 270 = 1350 -->
-              </div>
-              <div id="rcptGrBoxTotalRow" class="hidden border-t border-dashed border-gray-400 pt-1 mt-1 text-[11px] font-black flex justify-between text-black font-mono-num">
-                <span>Total G/R:</span>
-                <span>-₹<span id="rcptGrBoxTotalAmount">0</span></span>
-              </div>
             </div>
           </div>
 
@@ -1479,6 +1493,29 @@
       return true;
     }
 
+    
+    function updatePrevBillTopBar(bill) {
+      if (!bill) {
+        if (savedBills && savedBills.length > 0) bill = savedBills[0];
+        else {
+          const bNo = document.getElementById('topBarPrevBillNo');
+          if (bNo) bNo.innerText = '#--';
+          const bQty = document.getElementById('topBarPrevBillQty');
+          if (bQty) bQty.innerText = '0';
+          const bAmt = document.getElementById('topBarPrevBillAmount');
+          if (bAmt) bAmt.innerText = '₹0';
+          return;
+        }
+      }
+      const bNo = document.getElementById('topBarPrevBillNo');
+      if (bNo) bNo.innerText = '#' + String(bill.billNo).padStart(2, '0');
+      const totalQty = (bill.items || []).reduce((s, i) => s + i.qty, 0);
+      const bQty = document.getElementById('topBarPrevBillQty');
+      if (bQty) bQty.innerText = totalQty;
+      const bAmt = document.getElementById('topBarPrevBillAmount');
+      if (bAmt) bAmt.innerText = '₹' + (bill.grandTotal || 0);
+    }
+
     function showToast(msg) {
       const toast = document.getElementById('appToast');
       toast.innerText = msg;
@@ -1517,6 +1554,11 @@
         if (savedK) khataLedger = JSON.parse(savedK);
 
         document.getElementById('settingDisableSuggestions').checked = !!config.disableSuggestions;
+
+        // Show previous bill details on topbar
+        if (savedBills && savedBills.length > 0) {
+          updatePrevBillTopBar(savedBills[0]);
+        }
       } catch (e) {}
     }
 
@@ -1565,6 +1607,24 @@
       document.getElementById('splitCashAmount').value = '';
       document.getElementById('splitUpiAmount').value = '';
       document.getElementById('partialPaymentRow').classList.add('hidden');
+
+      // Thoroughly clear G/R Less inputs and state for next bill
+      const grQInput = document.getElementById('grItemQtyInput');
+      if (grQInput) grQInput.value = '';
+      const grRInput = document.getElementById('grItemRateInput');
+      if (grRInput) grRInput.value = '';
+      const grLumpInput = document.getElementById('grManualLumpSumInput');
+      if (grLumpInput) grLumpInput.value = '';
+      
+      const grBoxEl = document.getElementById('rcptGrBox');
+      if (grBoxEl) grBoxEl.classList.add('hidden');
+      const grLinesEl = document.getElementById('rcptGrBoxLines');
+      if (grLinesEl) grLinesEl.innerHTML = '';
+      const grBoxTotEl = document.getElementById('rcptGrBoxTotalRow');
+      if (grBoxTotEl) grBoxTotEl.classList.add('hidden');
+
+      renderGrModalItemsList();
+
       updateUdharUI();
       resetInputs();
     }
@@ -2292,6 +2352,11 @@
         }
         persistAllData();
         showToast("Bill #" + activeBill.billNo + " saved!");
+      }
+
+      // Update Topbar with previous bill total quantity and amount
+      if (savedRecord) {
+        updatePrevBillTopBar(savedRecord);
       }
 
       // Trigger WhatsApp direct image sharing if mobile number was entered
@@ -3048,7 +3113,7 @@
 
       const timeline = [];
       if (c.openingBalance && c.openingBalance > 0) {
-        timeline.push({ type: 'openingBalance', amount: c.openingBalance, date: c.openingBalanceDate || c.bills?.[c.bills.length-1]?.date || new Date().toISOString() });
+        timeline.push({ type: 'openingBalance', amount: c.openingBalance, date: c.openingBalanceDate || '1970-01-01T00:00:00.000Z' });
       }
       (c.bills || []).forEach(b => {
         if ((!fromDate || b.date >= fromDate) && (!toDate || b.date <= toDate + 'T23:59:59')) {
@@ -3060,10 +3125,11 @@
           timeline.push({ type: 'payment', ...p });
         }
       });
-      timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Sort older entry first (Chronological order)
+      timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
 
       timeline.forEach(item => {
-        const dStr = item.date ? new Date(item.date).toLocaleDateString('en-GB') : '';
+        const dStr = (item.date && !item.date.startsWith('1970')) ? new Date(item.date).toLocaleDateString('en-GB') : '';
         const row = document.createElement('div');
         if (item.type === 'openingBalance') {
           row.className = 'p-2 rounded-lg bg-amber-950/30 border border-amber-500/40 flex justify-between items-center text-xs';
@@ -3170,7 +3236,9 @@
         opRow.innerHTML = `<span class="col-span-4 text-gray-700">${opDateStr}</span><span class="col-span-4 font-black">Opening Bal</span><span class="col-span-4 text-right font-black">₹${c.openingBalance}</span>`;
         billsContainer.appendChild(opRow);
       }
-      const bills = (c.bills || []).filter(b => (!fromDate || b.date >= fromDate) && (!toDate || b.date <= toDate + 'T23:59:59'));
+      const bills = (c.bills || [])
+        .filter(b => (!fromDate || b.date >= fromDate) && (!toDate || b.date <= toDate + 'T23:59:59'))
+        .sort((a, b) => new Date(a.date) - new Date(b.date)); // older entry first
       document.getElementById('ksBillsCount').innerText = `${bills.length + (c.openingBalance > 0 ? 1 : 0)} ITEMS`;
       bills.forEach((b) => {
         const amt = b.due !== undefined ? b.due : b.amount;
@@ -3184,7 +3252,9 @@
       document.getElementById('ksTotalUdhar').innerText = `₹${totalUdhar}`;
 
       let totalJama = 0;
-      const payments = (c.payments || []).filter(p => (!fromDate || p.date >= fromDate) && (!toDate || p.date <= toDate + 'T23:59:59'));
+      const payments = (c.payments || [])
+        .filter(p => (!fromDate || p.date >= fromDate) && (!toDate || p.date <= toDate + 'T23:59:59'))
+        .sort((a, b) => new Date(a.date) - new Date(b.date)); // older entry first
       document.getElementById('ksPaymentsCount').innerText = `${payments.length} PAYMENTS`;
       payments.forEach((p) => {
         totalJama += p.amount;
@@ -3283,14 +3353,18 @@
         pushText("--------------------------------\n");
 
         const timeline = [];
+        if (c.openingBalance && c.openingBalance > 0) {
+          timeline.push({ type: 'openingBalance', amount: c.openingBalance, date: c.openingBalanceDate || '1970-01-01T00:00:00.000Z' });
+        }
         (c.bills || []).forEach(b => timeline.push({ type: 'bill', ...b }));
         (c.payments || []).forEach(p => timeline.push({ type: 'payment', ...p }));
+        // Sort older entry first
         timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         timeline.forEach(item => {
-          const dStr = new Date(item.date).toLocaleDateString('en-GB');
-          let desc = item.type === 'bill' ? ("Bill #" + item.billNo) : ("Jama (" + (item.mode || 'Cash') + ")");
-          let amt = item.type === 'bill' ? ("+" + (item.due || item.amount)) : ("-" + item.amount);
+          const dStr = (item.date && !item.date.startsWith('1970')) ? new Date(item.date).toLocaleDateString('en-GB') : 'OPEN';
+          let desc = item.type === 'openingBalance' ? 'Open Bal' : (item.type === 'bill' ? ("Bill #" + item.billNo) : ("Jama (" + (item.mode || 'Cash') + ")"));
+          let amt = item.type === 'openingBalance' ? ("+" + item.amount) : (item.type === 'bill' ? ("+" + (item.due || item.amount)) : ("-" + item.amount));
           pushText(dStr.padEnd(11) + desc.padEnd(13) + amt.padStart(8) + "\n");
         });
 
@@ -3531,10 +3605,9 @@
         const discVal = bill.discount || 0;
         const grVal = bill.goodsReturn || 0;
 
-        const qtyLabel = (bill.goodsReturnItems && bill.goodsReturnItems.length > 0) 
-          ? ("SALE QTY: " + totalQty) 
-          : ("TOTAL QTY: " + totalQty);
-        const subTotStr = "Rs." + subTotalVal;
+        // 1. TOTAL QUANTITY KE SAMNE TOTAL AMOUNT
+        const qtyLabel = "TOTAL QTY: " + totalQty;
+        const subTotStr = "TOTAL: Rs." + subTotalVal;
         const subGap = Math.max(1, totalColumns - qtyLabel.length - subTotStr.length);
         pushText(qtyLabel + " ".repeat(subGap) + subTotStr + "\n");
 
@@ -3545,30 +3618,7 @@
           pushText(discLabel + " ".repeat(discGap) + discStr + "\n");
         }
 
-        if (grVal > 0) {
-          const grLabel = is58mm ? "G/R Less:" : "Goods Return (G/R Less):";
-          const grStr = "-Rs." + grVal;
-          const grGap = Math.max(1, totalColumns - grLabel.length - grStr.length);
-          pushText(grLabel + " ".repeat(grGap) + grStr + "\n");
-        }
-
-        pushText("-".repeat(totalColumns) + "\n");
-        pushArr([0x1B, 0x61, 0x01]);
-        pushArr([0x1D, 0x21, 0x11]);
-        pushText("TOTAL: Rs." + bill.grandTotal + "\n");
-        pushArr([0x1D, 0x21, 0x00]);
-
-        if (bill.paymentMode === 'Partial') {
-          pushText("Paid: Rs." + (bill.partialPaid || 0) + " | Due: Rs." + (bill.partialDue || 0) + "\n");
-        } else if (receiptConfig.showPaymentMode !== false) {
-          if (bill.paymentMode === 'Cash+UPI') {
-            pushText("Payment: Cash Rs." + (bill.splitCash || 0) + " + UPI Rs." + (bill.splitUpi || 0) + "\n");
-          } else {
-            pushText("Payment: " + bill.paymentMode + "\n");
-          }
-        }
-
-        // Print G/R Bill Details in a Small Box Under Total Bill Amount (Qty x Rate = Amount format)
+        // 2. USKE NICHE GR LESS DETAILS IN SMALL BOX (Qty x Rate = Amount format)
         if (bill.goodsReturnItems && bill.goodsReturnItems.length > 0) {
           pushArr([0x1B, 0x61, 0x01]); // Align Center
           const boxWidth = is58mm ? 28 : 36;
@@ -3600,7 +3650,7 @@
           }
 
           pushText(topBorder + "\n");
-          pushArr([0x1B, 0x61, 0x00]); // Align Left
+          pushArr([0x1B, 0x61, 0x00]); // Reset to Align Left
         } else if (bill.goodsReturn > 0) {
           pushArr([0x1B, 0x61, 0x01]);
           const boxWidth = is58mm ? 28 : 36;
@@ -3613,6 +3663,23 @@
           pushText("|" + " ".repeat(pLL) + grText + " ".repeat(pLR) + "|\n");
           pushText(topBorder + "\n");
           pushArr([0x1B, 0x61, 0x00]);
+        }
+
+        // 3. USKE NICHE GRAND TOTAL
+        pushText("-".repeat(totalColumns) + "\n");
+        pushArr([0x1B, 0x61, 0x01]); // Align Center
+        pushArr([0x1D, 0x21, 0x11]); // Double height/width
+        pushText("GRAND TOTAL: Rs." + bill.grandTotal + "\n");
+        pushArr([0x1D, 0x21, 0x00]); // Reset font size
+
+        if (bill.paymentMode === 'Partial') {
+          pushText("Paid: Rs." + (bill.partialPaid || 0) + " | Due: Rs." + (bill.partialDue || 0) + "\n");
+        } else if (receiptConfig.showPaymentMode !== false) {
+          if (bill.paymentMode === 'Cash+UPI') {
+            pushText("Payment: Cash Rs." + (bill.splitCash || 0) + " + UPI Rs." + (bill.splitUpi || 0) + "\n");
+          } else {
+            pushText("Payment: " + bill.paymentMode + "\n");
+          }
         }
 
         if (receiptConfig.showFooter !== false && receiptConfig.footerNote) {
