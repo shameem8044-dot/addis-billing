@@ -1623,6 +1623,10 @@
       document.getElementById('splitCashAmount').value = '';
       document.getElementById('splitUpiAmount').value = '';
       document.getElementById('partialPaymentRow').classList.add('hidden');
+      const pInput = document.getElementById('partialPaidInput');
+      if (pInput) pInput.value = '';
+      const pBadge = document.getElementById('partialDueBadge');
+      if (pBadge) pBadge.innerText = '₹0';
 
       // Thoroughly clear G/R Less inputs and state for next bill
       const grQInput = document.getElementById('grItemQtyInput');
@@ -1919,6 +1923,15 @@
         } else {
           grBadge.classList.add('hidden');
         }
+      }
+
+      if (activeBill.paymentMode === 'Partial') {
+        const paid = parseFloat(document.getElementById('partialPaidInput').value) || 0;
+        const due = Math.max(0, grandTotal - paid);
+        activeBill.partialPaid = paid;
+        activeBill.partialDue = due;
+        const pBadge = document.getElementById('partialDueBadge');
+        if (pBadge) pBadge.innerText = "₹" + due;
       }
     }
 
@@ -2340,6 +2353,12 @@
       activeBill.subTotal = subTotal;
       activeBill.grandTotal = Math.max(0, subTotal - (activeBill.discount || 0) - (activeBill.goodsReturn || 0));
 
+      if (mode === 'Partial') {
+        const paidVal = parseFloat(document.getElementById('partialPaidInput').value) || 0;
+        activeBill.partialPaid = paidVal;
+        activeBill.partialDue = Math.max(0, activeBill.grandTotal - paidVal);
+      }
+
       activeBill.customerName = custName;
       activeBill.customerMobile = custMobile;
       activeBill.paymentMode = mode;
@@ -2632,6 +2651,11 @@
         const subTotalVal = data.items.reduce((s, i) => s + i.total, 0);
         data.subTotal = subTotalVal;
         data.grandTotal = Math.max(0, subTotalVal - (data.discount || 0) - (data.goodsReturn || 0));
+        if (data.paymentMode === 'Partial' || document.getElementById('paymentModeSelect').value === 'Partial') {
+          const paidVal = parseFloat(document.getElementById('partialPaidInput').value) || 0;
+          data.partialPaid = paidVal;
+          data.partialDue = Math.max(0, data.grandTotal - paidVal);
+        }
       }
       if (!data.customerName) {
         data.customerName = document.getElementById('custNameInput').value.trim();
@@ -2791,7 +2815,9 @@
       if (data.paymentMode === 'Cash+UPI') {
         document.getElementById('rcptPaymentMode').innerText = "Cash ₹" + (data.splitCash || 0) + " + UPI ₹" + (data.splitUpi || 0);
       } else if (data.paymentMode === 'Partial') {
-        document.getElementById('rcptPaymentMode').innerHTML = `Payment Mode: Partial<br/><b>Jama (Paid): ₹${data.partialPaid || 0}</b> | <b style="color: #000000;">Baki (Due): ₹${data.partialDue || 0}</b>`;
+        const computedDue = Math.max(0, (data.grandTotal || 0) - (data.partialPaid || 0));
+        data.partialDue = computedDue;
+        document.getElementById('rcptPaymentMode').innerHTML = `Partial<br/><b>Jama (Paid): ₹${data.partialPaid || 0}</b> | <b style="color: #000000;">Baki (Due): ₹${computedDue}</b>`;
       } else {
         document.getElementById('rcptPaymentMode').innerText = data.paymentMode || 'Cash';
       }
@@ -3593,6 +3619,11 @@
         const subTotal = bill.items.reduce((s, i) => s + i.total, 0);
         bill.subTotal = subTotal;
         bill.grandTotal = Math.max(0, subTotal - (bill.discount || 0) - (bill.goodsReturn || 0));
+        if (bill.paymentMode === 'Partial' || document.getElementById('paymentModeSelect').value === 'Partial') {
+          const paidVal = parseFloat(document.getElementById('partialPaidInput').value) || 0;
+          bill.partialPaid = paidVal;
+          bill.partialDue = Math.max(0, bill.grandTotal - paidVal);
+        }
       }
 
       if (!bluetoothCharacteristic) {
