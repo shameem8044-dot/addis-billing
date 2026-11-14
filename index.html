@@ -630,6 +630,23 @@
             </div>
           </div>
 
+          <!-- UDHAR BALANCE SUMMARY (NEW BILL + PREVIOUS BAL = TOTAL BAL) -->
+          <div id="rcptUdharBalanceBox" class="hidden my-2 border-t-2 border-dashed border-gray-600 pt-1.5 text-[11px] font-black text-black font-mono-num space-y-0.5">
+            <div class="flex justify-between">
+              <span id="rcptUdharNewBillLabel">New Bill</span>
+              <span>= ₹<span id="rcptUdharNewBillVal">0</span></span>
+            </div>
+            <div class="flex justify-between">
+              <span>Previous Bal.</span>
+              <span>= ₹<span id="rcptUdharPrevBalVal">0</span></span>
+            </div>
+            <div class="border-b border-dashed border-gray-700 my-1"></div>
+            <div class="flex justify-between text-xs font-black">
+              <span>Total Bal.</span>
+              <span>= ₹<span id="rcptUdharTotalBalVal">0</span></span>
+            </div>
+          </div>
+
           <div id="rcptFooterSection" class="text-center mt-2 pt-1 border-t-2 border-dashed border-gray-600">
             <p class="text-[10px] font-black text-gray-900" id="rcptFooterNote">Thank You! Visit Again 🙏</p>
           </div>
@@ -2328,6 +2345,19 @@
       activeBill.paymentMode = mode;
       activeBill.date = activeBill.date || new Date().toISOString();
 
+      const isUdharSave = isUdhar || mode === 'Credit' || (mode === 'Partial' && activeBill.partialDue > 0);
+      if (isUdharSave && custName) {
+        if (editingSavedBillId) {
+          const prevCopy = { ...activeBill, id: editingSavedBillId };
+          delete prevCopy.previousBalance;
+          activeBill.previousBalance = getCustomerPreviousKhataBalance(prevCopy);
+        } else {
+          activeBill.previousBalance = getCustomerPreviousKhataBalance(activeBill);
+        }
+      } else {
+        delete activeBill.previousBalance;
+      }
+
       let savedRecord = null;
 
       if (editingSavedBillId) {
@@ -2407,6 +2437,16 @@
         } else {
           caption += `Payment Mode: ${bill.paymentMode}\n`;
         }
+        const isUdharWa = bill.isUdhar || bill.paymentMode === 'Credit' || (bill.paymentMode === 'Partial' && (bill.partialDue || 0) > 0);
+        const prevDueWa = getCustomerPreviousKhataBalance(bill);
+        if (isUdharWa && prevDueWa > 0) {
+          const newBillAmtWa = (bill.paymentMode === 'Partial') ? (bill.partialDue || 0) : (bill.grandTotal || 0);
+          const totalBalWa = newBillAmtWa + prevDueWa;
+          caption += `---------------------------\n`;
+          caption += `New Bill = ₹${newBillAmtWa}\n`;
+          caption += `Previous Bal. = ₹${prevDueWa}\n`;
+          caption += `*Total Bal. = ₹${totalBalWa}*\n`;
+        }
         caption += `Thank you for shopping with Addis Jeans! 🙏`;
 
         // 1. Native Web Share API with File
@@ -2447,11 +2487,40 @@
       }
     }
 
+    function findKhataCustomer(name) {
+      const clean = (name || '').trim();
+      if (!clean) return null;
+      if (khataLedger[clean]) return khataLedger[clean];
+      const lower = clean.toLowerCase();
+      const key = Object.keys(khataLedger).find(k => k.trim().toLowerCase() === lower);
+      return key ? khataLedger[key] : null;
+    }
+
+    function getCustomerPreviousKhataBalance(bill) {
+      if (!bill || !bill.customerName) return 0;
+      if (typeof bill.previousBalance === 'number') {
+        return Math.max(0, bill.previousBalance);
+      }
+      const khataCust = findKhataCustomer(bill.customerName);
+      if (!khataCust) return 0;
+      let prevDue = khataCust.totalDue || 0;
+      if (bill.id && khataCust.bills) {
+        const existing = khataCust.bills.find(b => b.id === bill.id);
+        if (existing) {
+          prevDue = prevDue - (existing.due !== undefined ? existing.due : existing.amount);
+        }
+      }
+      return Math.max(0, prevDue);
+    }
+
     function syncBillToUdharKhata(bill) {
-      const name = (bill.customerName || '').trim();
+      let name = (bill.customerName || '').trim();
       if (!name) return;
 
-      if (!khataLedger[name]) {
+      const existingKey = Object.keys(khataLedger).find(k => k.trim().toLowerCase() === name.toLowerCase());
+      if (existingKey) {
+        name = existingKey;
+      } else if (!khataLedger[name]) {
         khataLedger[name] = { customerName: name, totalDue: 0, bills: [], payments: [] };
       }
 
@@ -2594,22 +2663,9 @@
         }
       }
 
-      // Previous Balance Row for Udhar Customers
+      // Keep header previous balance row hidden (moved to bottom balance summary box)
       const prevBalRow = document.getElementById('rcptPreviousBalanceRow');
-      const prevBalVal = document.getElementById('rcptPreviousBalanceVal');
-      if (prevBalRow && prevBalVal && data.customerName) {
-        const cName = data.customerName.trim();
-        const khataCust = khataLedger[cName];
-        const prevDue = khataCust ? (khataCust.totalDue || 0) : 0;
-        if (prevDue > 0) {
-          prevBalVal.innerText = "₹" + prevDue;
-          prevBalRow.classList.remove('hidden');
-        } else {
-          prevBalRow.classList.add('hidden');
-        }
-      } else if (prevBalRow) {
-        prevBalRow.classList.add('hidden');
-      }
+      if (prevBalRow) prevBalRow.classList.add('hidden');
       
       const addrEl = document.getElementById('rcptAddress');
       if (cfg.showAddress && (cfg.address || config.address)) {
@@ -2738,6 +2794,25 @@
         document.getElementById('rcptPaymentMode').innerHTML = `Payment Mode: Partial<br/><b>Jama (Paid): ₹${data.partialPaid || 0}</b> | <b style="color: #000000;">Baki (Due): ₹${data.partialDue || 0}</b>`;
       } else {
         document.getElementById('rcptPaymentMode').innerText = data.paymentMode || 'Cash';
+      }
+
+      // Populate Udhar Balance Summary Box (New Bill + Previous Bal. = Total Bal.)
+      const udharBox = document.getElementById('rcptUdharBalanceBox');
+      if (udharBox) {
+        const isUdharBill = data.isUdhar || data.paymentMode === 'Credit' || (data.paymentMode === 'Partial' && (data.partialDue || 0) > 0);
+        const prevDue = getCustomerPreviousKhataBalance(data);
+        if (isUdharBill && prevDue > 0) {
+          const newBillAmt = (data.paymentMode === 'Partial') ? (data.partialDue || 0) : (data.grandTotal || subTotal);
+          const totalBalAmt = newBillAmt + prevDue;
+          const lblEl = document.getElementById('rcptUdharNewBillLabel');
+          if (lblEl) lblEl.innerText = (data.paymentMode === 'Partial') ? 'New Bill (Due)' : 'New Bill';
+          document.getElementById('rcptUdharNewBillVal').innerText = newBillAmt;
+          document.getElementById('rcptUdharPrevBalVal').innerText = prevDue;
+          document.getElementById('rcptUdharTotalBalVal').innerText = totalBalAmt;
+          udharBox.classList.remove('hidden');
+        } else {
+          udharBox.classList.add('hidden');
+        }
       }
 
       const footerEl = document.getElementById('rcptFooterSection');
@@ -3679,6 +3754,32 @@
           } else {
             pushText("Payment: " + bill.paymentMode + "\n");
           }
+        }
+
+        // Print Udhar Balance Summary (New Bill + Previous Bal. = Total Bal.)
+        const isUdharBt = bill.isUdhar || bill.paymentMode === 'Credit' || (bill.paymentMode === 'Partial' && (bill.partialDue || 0) > 0);
+        const prevDueBt = getCustomerPreviousKhataBalance(bill);
+        if (isUdharBt && prevDueBt > 0) {
+          const newBillAmtBt = (bill.paymentMode === 'Partial') ? (bill.partialDue || 0) : (bill.grandTotal || 0);
+          const totalBalBt = newBillAmtBt + prevDueBt;
+          pushArr([0x1B, 0x61, 0x00]); // Align Left
+          pushText("-".repeat(totalColumns) + "\n");
+          
+          const l1 = (bill.paymentMode === 'Partial') ? "New Bill (Due)" : "New Bill";
+          const v1 = "= Rs." + newBillAmtBt;
+          pushText(l1 + " ".repeat(Math.max(1, totalColumns - l1.length - v1.length)) + v1 + "\n");
+
+          const l2 = "Previous Bal.";
+          const v2 = "= Rs." + prevDueBt;
+          pushText(l2 + " ".repeat(Math.max(1, totalColumns - l2.length - v2.length)) + v2 + "\n");
+
+          pushText("-".repeat(totalColumns) + "\n");
+
+          pushArr([0x1B, 0x45, 0x01]); // Bold
+          const l3 = "Total Bal.";
+          const v3 = "= Rs." + totalBalBt;
+          pushText(l3 + " ".repeat(Math.max(1, totalColumns - l3.length - v3.length)) + v3 + "\n");
+          pushArr([0x1B, 0x61, 0x01]); // Align Center
         }
 
         if (receiptConfig.showFooter !== false && receiptConfig.footerNote) {
