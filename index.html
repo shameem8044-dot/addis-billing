@@ -3194,60 +3194,123 @@
       });
     }
 
+    function toLocalDateKey(isoStr) {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return String(isoStr).split('T')[0];
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function formatShortDate(dateKey) {
+      if (!dateKey) return '';
+      const parts = dateKey.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dateKey;
+    }
+
+    function computeKhataStatementData(c, fromDate, toDate) {
+      const baseOpening = c.openingBalance || 0;
+      let openingBal = baseOpening;
+      const periodBills = [];
+      const periodPayments = [];
+
+      const allBills = [...(c.bills || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+      const allPayments = [...(c.payments || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      allBills.forEach(b => {
+        const dKey = toLocalDateKey(b.date);
+        const amt = b.due !== undefined ? b.due : b.amount;
+        if (fromDate && dKey < fromDate) {
+          openingBal += amt;
+        } else if ((!fromDate || dKey >= fromDate) && (!toDate || dKey <= toDate)) {
+          periodBills.push({ ...b, amt });
+        }
+      });
+
+      allPayments.forEach(p => {
+        const dKey = toLocalDateKey(p.date);
+        if (fromDate && dKey < fromDate) {
+          openingBal -= p.amount;
+        } else if ((!fromDate || dKey >= fromDate) && (!toDate || dKey <= toDate)) {
+          periodPayments.push({ ...p });
+        }
+      });
+
+      const periodBillsTotal = periodBills.reduce((s, b) => s + b.amt, 0);
+      const totalUdhar = openingBal + periodBillsTotal;
+      const totalJama = periodPayments.reduce((s, p) => s + p.amount, 0);
+      const closingBalance = Math.max(0, totalUdhar - totalJama);
+
+      return {
+        openingBal,
+        periodBills,
+        periodPayments,
+        periodBillsTotal,
+        totalUdhar,
+        totalJama,
+        closingBalance
+      };
+    }
+
     function openKhataDetailModal(name) {
+      if (selectedKhataCustomer !== name) {
+        const fEl = document.getElementById('kdFilterFromDate');
+        const tEl = document.getElementById('kdFilterToDate');
+        if (fEl) fEl.value = '';
+        if (tEl) tEl.value = '';
+      }
       selectedKhataCustomer = name;
       const c = khataLedger[name];
       if (!c) return;
 
+      const fromDate = document.getElementById('kdFilterFromDate').value;
+      const toDate = document.getElementById('kdFilterToDate').value;
+
+      const st = computeKhataStatementData(c, fromDate, toDate);
+
       document.getElementById('kdCustomerName').innerText = c.customerName;
-      document.getElementById('kdCustomerBalance').innerText = "₹" + (c.totalDue || 0);
+      document.getElementById('kdCustomerBalance').innerText = "₹" + ((fromDate || toDate) ? st.closingBalance : (c.totalDue || 0));
       document.getElementById('kdPaymentAmount').value = '';
       document.getElementById('kdPaymentDate').value = new Date().toISOString().split('T')[0];
       document.getElementById('kdPaymentMode').value = 'Cash';
 
-      const fromDate = document.getElementById('kdFilterFromDate').value;
-      const toDate = document.getElementById('kdFilterToDate').value;
-
       const historyContainer = document.getElementById('kdBillsHistory');
       historyContainer.innerHTML = '';
 
-      const timeline = [];
-      if (c.openingBalance && c.openingBalance > 0) {
-        timeline.push({ type: 'openingBalance', amount: c.openingBalance, date: c.openingBalanceDate || '1970-01-01T00:00:00.000Z' });
+      if (st.openingBal !== 0 || fromDate) {
+        const opRow = document.createElement('div');
+        opRow.className = 'p-2 rounded-lg bg-amber-950/30 border border-amber-500/40 flex justify-between items-center text-xs';
+        const opSub = fromDate ? `As on ${formatShortDate(fromDate)}` : 'Shuruati Bakaya';
+        opRow.innerHTML = `
+          <div>
+            <span class="font-black text-amber-400">Opening Balance</span>
+            <div class="text-[9px] text-gray-400">${opSub}</div>
+          </div>
+          <span class="font-black text-amber-400 font-mono-num">₹${st.openingBal}</span>
+        `;
+        historyContainer.appendChild(opRow);
       }
-      (c.bills || []).forEach(b => {
-        if ((!fromDate || b.date >= fromDate) && (!toDate || b.date <= toDate + 'T23:59:59')) {
-          timeline.push({ type: 'bill', ...b });
-        }
-      });
-      (c.payments || []).forEach(p => {
-        if ((!fromDate || p.date >= fromDate) && (!toDate || p.date <= toDate + 'T23:59:59')) {
-          timeline.push({ type: 'payment', ...p });
-        }
-      });
+
+      const timeline = [];
+      st.periodBills.forEach(b => timeline.push({ type: 'bill', ...b }));
+      st.periodPayments.forEach(p => timeline.push({ type: 'payment', ...p }));
       // Sort older entry first (Chronological order)
       timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
 
       timeline.forEach(item => {
-        const dStr = (item.date && !item.date.startsWith('1970')) ? new Date(item.date).toLocaleDateString('en-GB') : '';
+        const dStr = item.date ? new Date(item.date).toLocaleDateString('en-GB') : '';
         const row = document.createElement('div');
-        if (item.type === 'openingBalance') {
-          row.className = 'p-2 rounded-lg bg-amber-950/30 border border-amber-500/40 flex justify-between items-center text-xs';
-          row.innerHTML = `
-            <div>
-              <span class="font-black text-amber-400">Opening Balance</span>
-              <div class="text-[9px] text-gray-400">Shuruati Bakaya</div>
-            </div>
-            <span class="font-black text-amber-400 font-mono-num">+₹${item.amount}</span>
-          `;
-        } else if (item.type === 'bill') {
+        if (item.type === 'bill') {
           row.className = 'p-2 rounded-lg bg-[#141417] border border-gray-800 flex justify-between items-center text-xs';
           row.innerHTML = `
             <div>
               <span class="font-bold text-amber-400">Bill #${item.billNo}</span>
               <div class="text-[9px] text-gray-500">${dStr}</div>
             </div>
-            <span class="font-black text-red-400 font-mono-num">+₹${item.due || item.amount}</span>
+            <span class="font-black text-red-400 font-mono-num">+₹${item.amt}</span>
           `;
         } else {
           row.className = 'p-2 rounded-lg bg-emerald-950/20 border border-emerald-500/30 flex justify-between items-center text-xs';
@@ -3322,51 +3385,58 @@
       const fromDate = document.getElementById('kdFilterFromDate').value;
       const toDate = document.getElementById('kdFilterToDate').value;
 
+      const periodRow = document.getElementById('ksPeriodRow');
+      const periodText = document.getElementById('ksPeriodText');
+      if (periodRow && periodText) {
+        if (fromDate || toDate) {
+          periodText.innerText = `${fromDate ? formatShortDate(fromDate) : 'Start'} to ${toDate ? formatShortDate(toDate) : 'Present'}`;
+          periodRow.classList.remove('hidden');
+        } else {
+          periodRow.classList.add('hidden');
+        }
+      }
+
+      const st = computeKhataStatementData(c, fromDate, toDate);
+
       const billsContainer = document.getElementById('ksBillsList');
       const paymentsContainer = document.getElementById('ksPaymentsList');
       billsContainer.innerHTML = '';
       paymentsContainer.innerHTML = '';
 
-      let totalUdhar = 0;
-      if (c.openingBalance && c.openingBalance > 0) {
-        totalUdhar += c.openingBalance;
-        const opDateStr = c.openingBalanceDate ? new Date(c.openingBalanceDate).toLocaleDateString('en-GB') : '';
+      let hasOpening = (st.openingBal !== 0 || !!fromDate);
+      if (hasOpening) {
+        const opDateStr = fromDate ? formatShortDate(fromDate) : (c.openingBalanceDate ? new Date(c.openingBalanceDate).toLocaleDateString('en-GB') : '');
         const opRow = document.createElement('div');
         opRow.className = 'grid grid-cols-12 text-[11px] font-bold text-amber-900';
-        opRow.innerHTML = `<span class="col-span-4 text-gray-700">${opDateStr}</span><span class="col-span-4 font-black">Opening Bal</span><span class="col-span-4 text-right font-black">₹${c.openingBalance}</span>`;
+        opRow.innerHTML = `<span class="col-span-4 text-gray-700">${opDateStr}</span><span class="col-span-4 font-black">Opening Bal</span><span class="col-span-4 text-right font-black">₹${st.openingBal}</span>`;
         billsContainer.appendChild(opRow);
       }
-      const bills = (c.bills || [])
-        .filter(b => (!fromDate || b.date >= fromDate) && (!toDate || b.date <= toDate + 'T23:59:59'))
-        .sort((a, b) => new Date(a.date) - new Date(b.date)); // older entry first
-      document.getElementById('ksBillsCount').innerText = `${bills.length + (c.openingBalance > 0 ? 1 : 0)} ITEMS`;
+
+      const bills = st.periodBills;
+      document.getElementById('ksBillsCount').innerText = `${bills.length + (hasOpening ? 1 : 0)} ITEMS`;
       bills.forEach((b) => {
-        const amt = b.due !== undefined ? b.due : b.amount;
-        totalUdhar += amt;
         const dStr = new Date(b.date).toLocaleDateString('en-GB');
         const row = document.createElement('div');
         row.className = 'grid grid-cols-12 text-[11px] font-bold';
-        row.innerHTML = `<span class="col-span-4 text-gray-700">${dStr}</span><span class="col-span-4 font-black">Bill #${b.billNo}</span><span class="col-span-4 text-right font-black">₹${amt}</span>`;
+        row.innerHTML = `<span class="col-span-4 text-gray-700">${dStr}</span><span class="col-span-4 font-black">Bill #${b.billNo}</span><span class="col-span-4 text-right font-black">₹${b.amt}</span>`;
         billsContainer.appendChild(row);
       });
-      document.getElementById('ksTotalUdhar').innerText = `₹${totalUdhar}`;
+      document.getElementById('ksTotalUdhar').innerText = `₹${st.totalUdhar}`;
 
-      let totalJama = 0;
-      const payments = (c.payments || [])
-        .filter(p => (!fromDate || p.date >= fromDate) && (!toDate || p.date <= toDate + 'T23:59:59'))
-        .sort((a, b) => new Date(a.date) - new Date(b.date)); // older entry first
+      const payments = st.periodPayments;
       document.getElementById('ksPaymentsCount').innerText = `${payments.length} PAYMENTS`;
       payments.forEach((p) => {
-        totalJama += p.amount;
         const dStr = new Date(p.date).toLocaleDateString('en-GB');
         const row = document.createElement('div');
         row.className = 'grid grid-cols-12 text-[11px] font-bold text-gray-800';
         row.innerHTML = `<span class="col-span-4 text-gray-700">${dStr}</span><span class="col-span-4 font-bold">Jama [${p.mode || 'Cash'}]</span><span class="col-span-4 text-right font-black">-₹${p.amount}</span>`;
         paymentsContainer.appendChild(row);
       });
-      document.getElementById('ksTotalJama').innerText = `-₹${totalJama}`;
+      document.getElementById('ksTotalJama').innerText = `-₹${st.totalJama}`;
 
-      const netDue = Math.max(0, totalUdhar - totalJama);
+      const totalUdhar = st.totalUdhar;
+      const totalJama = st.totalJama;
+      const netDue = st.closingBalance;
       document.getElementById('ksNetDueAmount').innerText = `₹${netDue}`;
 
       slip.classList.remove('hidden');
@@ -3383,7 +3453,8 @@
 
       let caption = `*ADDIS JEANS - Khata Statement (उधार खाता)*\n`;
       caption += `Customer: *${c.customerName}*\n`;
-      if (fromDate || toDate) caption += `Period: ${fromDate || 'Start'} to ${toDate || 'Present'}\n`;
+      if (fromDate || toDate) caption += `Period: ${fromDate ? formatShortDate(fromDate) : 'Start'} to ${toDate ? formatShortDate(toDate) : 'Present'}\n`;
+      if (hasOpening) caption += `Opening Bal: ₹${st.openingBal}\n`;
       caption += `Total Udhar: ₹${totalUdhar} | Total Jama: ₹${totalJama}\n`;
       caption += `*TOTAL BALANCE DUE (कुल बाकी): ₹${netDue}*\n`;
       caption += `Thank you! 🙏`;
@@ -3445,33 +3516,43 @@
         pushText((config.storeName || 'ADDIS JEANS') + "\n");
         pushText("CUSTOMER KHATA STATEMENT\n");
         pushText("--------------------------------\n");
+        const fromDate = document.getElementById('kdFilterFromDate').value;
+        const toDate = document.getElementById('kdFilterToDate').value;
+        const st = computeKhataStatementData(c, fromDate, toDate);
+
         pushArr([0x1B, 0x61, 0x00]);
         pushText("Customer: " + name + "\n");
         pushText("Date: " + new Date().toLocaleDateString('en-GB') + "\n");
+        if (fromDate || toDate) {
+          pushText("Period: " + (fromDate ? formatShortDate(fromDate) : 'Start') + " - " + (toDate ? formatShortDate(toDate) : 'Now') + "\n");
+        }
         pushText("--------------------------------\n");
         pushText("DATE       DETAILS        AMOUNT\n");
         pushText("--------------------------------\n");
 
-        const timeline = [];
-        if (c.openingBalance && c.openingBalance > 0) {
-          timeline.push({ type: 'openingBalance', amount: c.openingBalance, date: c.openingBalanceDate || '1970-01-01T00:00:00.000Z' });
+        if (st.openingBal !== 0 || fromDate) {
+          const opDateStr = fromDate ? formatShortDate(fromDate) : 'OPEN';
+          const opAmtStr = (st.openingBal >= 0 ? "+" : "") + st.openingBal;
+          pushText(opDateStr.padEnd(11) + "Open Bal".padEnd(13) + opAmtStr.padStart(8) + "\n");
         }
-        (c.bills || []).forEach(b => timeline.push({ type: 'bill', ...b }));
-        (c.payments || []).forEach(p => timeline.push({ type: 'payment', ...p }));
+
+        const timeline = [];
+        st.periodBills.forEach(b => timeline.push({ type: 'bill', ...b }));
+        st.periodPayments.forEach(p => timeline.push({ type: 'payment', ...p }));
         // Sort older entry first
         timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         timeline.forEach(item => {
-          const dStr = (item.date && !item.date.startsWith('1970')) ? new Date(item.date).toLocaleDateString('en-GB') : 'OPEN';
-          let desc = item.type === 'openingBalance' ? 'Open Bal' : (item.type === 'bill' ? ("Bill #" + item.billNo) : ("Jama (" + (item.mode || 'Cash') + ")"));
-          let amt = item.type === 'openingBalance' ? ("+" + item.amount) : (item.type === 'bill' ? ("+" + (item.due || item.amount)) : ("-" + item.amount));
+          const dStr = item.date ? new Date(item.date).toLocaleDateString('en-GB') : '';
+          let desc = item.type === 'bill' ? ("Bill #" + item.billNo) : ("Jama (" + (item.mode || 'Cash') + ")");
+          let amt = item.type === 'bill' ? ("+" + item.amt) : ("-" + item.amount);
           pushText(dStr.padEnd(11) + desc.padEnd(13) + amt.padStart(8) + "\n");
         });
 
         pushText("--------------------------------\n");
         pushArr([0x1B, 0x61, 0x01]);
         pushArr([0x1D, 0x21, 0x11]);
-        pushText("TOTAL DUE: Rs." + (c.totalDue || 0) + "\n");
+        pushText("TOTAL DUE: Rs." + st.closingBalance + "\n");
         pushArr([0x1D, 0x21, 0x00]);
         pushText("Thank You! 🙏\n\n\n\n");
         pushArr([0x1D, 0x56, 0x42, 0x00]);
@@ -4291,6 +4372,9 @@
     </div>
     <div class="flex justify-between text-[10px] text-gray-700">
       <span>Date: <span id="ksStatementDate"></span></span>
+    </div>
+    <div id="ksPeriodRow" class="hidden flex justify-between text-[10px] font-black text-black mt-0.5">
+      <span>Period: <span id="ksPeriodText"></span></span>
     </div>
 
     <div class="border-b-2 border-dashed border-gray-600 my-1.5"></div>
