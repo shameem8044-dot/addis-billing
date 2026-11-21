@@ -942,18 +942,36 @@
         </div>
       </div>
 
-      <div class="p-3 bg-[#121215] border-b border-gray-800 grid grid-cols-3 gap-2 text-center text-xs font-mono-num">
-        <div class="bg-[#18181f] p-2 rounded-xl border border-gray-800">
-          <div class="text-[9px] text-gray-400 uppercase">Bills</div>
-          <div class="text-base font-extrabold text-white" id="kpiTotalBills">0</div>
+      <div class="p-3 bg-[#121215] border-b border-gray-800 space-y-2">
+        <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono-num">
+          <div class="bg-[#18181f] p-2 rounded-xl border border-gray-800">
+            <div class="text-[9px] text-gray-400 uppercase">Bills</div>
+            <div class="text-base font-extrabold text-white" id="kpiTotalBills">0</div>
+          </div>
+          <div class="bg-[#18181f] p-2 rounded-xl border border-gray-800">
+            <div class="text-[9px] text-gray-400 uppercase">Qty</div>
+            <div class="text-base font-extrabold text-amber-400" id="kpiTotalQty">0</div>
+          </div>
+          <div class="bg-[#18181f] p-2 rounded-xl border border-emerald-500/30">
+            <div class="text-[9px] text-emerald-400 uppercase font-bold">Total Sell</div>
+            <div class="text-base font-extrabold text-emerald-400" id="kpiTotalAmount">₹0</div>
+          </div>
         </div>
-        <div class="bg-[#18181f] p-2 rounded-xl border border-gray-800">
-          <div class="text-[9px] text-gray-400 uppercase">Qty</div>
-          <div class="text-base font-extrabold text-amber-400" id="kpiTotalQty">0</div>
-        </div>
-        <div class="bg-[#18181f] p-2 rounded-xl border border-gray-800">
-          <div class="text-[9px] text-gray-400 uppercase">Total Sales</div>
-          <div class="text-base font-extrabold text-emerald-400" id="kpiTotalAmount">₹0</div>
+
+        <!-- Cash + Khata Cash + UPI + Khata UPI = Total Sell (Udhar Excluded) -->
+        <div class="bg-[#18181f] p-2 rounded-xl border border-gray-800 text-[10.5px] font-mono-num space-y-1">
+          <div class="flex justify-between text-gray-300">
+            <span>Bill Cash: <b id="repBillCash" class="text-white">₹0</b></span>
+            <span>Khata Cash: <b id="repKhataCash" class="text-emerald-400">₹0</b></span>
+          </div>
+          <div class="flex justify-between text-gray-300">
+            <span>Bill UPI: <b id="repBillUpi" class="text-white">₹0</b></span>
+            <span>Khata UPI: <b id="repKhataUpi" class="text-blue-400">₹0</b></span>
+          </div>
+          <div class="border-t border-gray-700/70 pt-1 flex justify-between items-center text-[10px] text-gray-400">
+            <span>Udhar Excluded (उधार शामिल नहीं)</span>
+            <span class="text-emerald-400 font-bold">Cash+UPI = <b id="repTotalNetSell">₹0</b></span>
+          </div>
         </div>
       </div>
 
@@ -3796,19 +3814,35 @@
 
       const filtered = savedBills.filter(b => {
         let matchDate = true;
-        if (selectedDate) matchDate = b.date && b.date.startsWith(selectedDate);
+        if (selectedDate) matchDate = b.date && toLocalDateKey(b.date) === selectedDate;
         let matchCust = true;
         if (custQuery) matchCust = b.customerName && b.customerName.toLowerCase().includes(custQuery);
         return matchDate && matchCust;
       });
 
       let totalQty = 0;
-      let totalSales = 0;
+      let billCash = 0;
+      let billUpi = 0;
       const itemMap = {};
 
       filtered.forEach(b => {
         totalQty += b.items.reduce((s, i) => s + i.qty, 0);
-        totalSales += b.grandTotal;
+
+        // Exclude Udhar (Credit) sales from Total Sell; only count actual Cash & UPI received
+        if (b.paymentMode === 'Credit' || b.isUdhar) {
+          // Udhar sale not counted in Total Sell
+        } else if (b.paymentMode === 'UPI') {
+          billUpi += (b.grandTotal || 0);
+        } else if (b.paymentMode === 'Cash+UPI') {
+          billCash += (b.splitCash || 0);
+          billUpi += (b.splitUpi || 0);
+        } else if (b.paymentMode === 'Partial') {
+          // Only paid portion is cash received; partialDue is Udhar
+          billCash += (b.partialPaid || 0);
+        } else {
+          // Default Cash
+          billCash += (b.grandTotal || 0);
+        }
 
         b.items.forEach(it => {
           if (!itemMap[it.name]) {
@@ -3873,9 +3907,39 @@
         });
       }
 
+      // Calculate Cash & UPI received in Udhar Khata
+      let khataCash = 0;
+      let khataUpi = 0;
+      Object.values(khataLedger || {}).forEach(c => {
+        if (!c) return;
+        if (custQuery && !(c.customerName || '').toLowerCase().includes(custQuery)) return;
+        (c.payments || []).forEach(p => {
+          if (selectedDate && toLocalDateKey(p.date) !== selectedDate) return;
+          const m = (p.mode || 'Cash').trim();
+          if (m === 'Cash') {
+            khataCash += (p.amount || 0);
+          } else if (m === 'UPI') {
+            khataUpi += (p.amount || 0);
+          }
+        });
+      });
+
+      const totalSell = billCash + khataCash + billUpi + khataUpi;
+
       document.getElementById('kpiTotalBills').innerText = filtered.length;
       document.getElementById('kpiTotalQty').innerText = totalQty;
-      document.getElementById('kpiTotalAmount').innerText = "₹" + totalSales;
+      document.getElementById('kpiTotalAmount').innerText = "₹" + totalSell;
+
+      const elBC = document.getElementById('repBillCash');
+      if (elBC) elBC.innerText = "₹" + billCash;
+      const elKC = document.getElementById('repKhataCash');
+      if (elKC) elKC.innerText = "₹" + khataCash;
+      const elBU = document.getElementById('repBillUpi');
+      if (elBU) elBU.innerText = "₹" + billUpi;
+      const elKU = document.getElementById('repKhataUpi');
+      if (elKU) elKU.innerText = "₹" + khataUpi;
+      const elNet = document.getElementById('repTotalNetSell');
+      if (elNet) elNet.innerText = "₹" + totalSell;
     }
 
     function viewReportBill(id) {
