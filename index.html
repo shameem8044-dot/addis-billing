@@ -10,7 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&family=Roboto+Mono:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow:wght@700;800;900&family=Roboto:wght@400;500;700;900&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&family=Roboto+Mono:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
     
     * {
       -webkit-tap-highlight-color: transparent;
@@ -52,7 +52,9 @@
       background: #ffffff;
       color: #000000;
       font-weight: 900 !important;
-      font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+      font-family: 'Atkinson Hyperlegible', 'Barlow', 'Verdana', sans-serif !important;
+      font-variant-numeric: tabular-nums;
+      -webkit-text-stroke: 0.35px #000000;
     }
 
     /* Fix character top-clipping on thermal slips */
@@ -768,6 +770,8 @@
             <div>
               <label class="block text-gray-300 mb-1 font-medium text-[11px]">Font Family</label>
               <select id="custFontFamily" onchange="updateCustomizerLivePreview()" class="w-full bg-[#1e1e24] border border-gray-700 rounded-lg px-2 py-1.5 text-white text-xs outline-none">
+                <option value="atkinson">Atkinson Clear (Best 6 vs 8)</option>
+                <option value="barlow">Barlow Heavy Bold</option>
                 <option value="monospace">JetBrains Mono (Thermal Standard)</option>
                 <option value="roboto">Roboto Mono (Clean Modern)</option>
                 <option value="space">Space Mono (Retro POS)</option>
@@ -1167,6 +1171,24 @@
               </select>
             </div>
           </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-400 mb-1 text-[10px] font-semibold">Thermal Font (6 vs 8)</label>
+              <select id="settingPrinterFont" class="w-full bg-[#1e1e24] border border-gray-700 rounded px-2 py-1.5 text-white text-xs outline-none">
+                <option value="fontA">Font A (Clear & Wide)</option>
+                <option value="fontB">Font B (Compact)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-gray-400 mb-1 text-[10px] font-semibold">Letter Darkness (Bold)</label>
+              <select id="settingBoldMode" class="w-full bg-[#1e1e24] border border-gray-700 rounded px-2 py-1.5 text-white text-xs outline-none">
+                <option value="double">Extra Bold + Double Strike</option>
+                <option value="bold">Standard Bold</option>
+                <option value="normal">Normal</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <!-- DISABLE SUGGESTIONS TOGGLE -->
@@ -1305,6 +1327,45 @@
     </div>
   </div>
 
+  <!-- ================= CANCEL SAVED BILL CONFIRMATION MODAL ================= -->
+  <div id="cancelBillConfirmModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#1e1e24] border border-red-500/50 w-full max-w-xs rounded-2xl p-4 shadow-2xl text-xs space-y-3">
+      <div class="flex items-center gap-2 pb-2 border-b border-gray-700">
+        <div class="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center">
+          <i class="fa-solid fa-ban"></i>
+        </div>
+        <div>
+          <h4 class="font-bold text-white text-sm">Bill Cancel Karein?</h4>
+          <p class="text-[10px] text-gray-400">Maal nahi gaya to bill cancel karein</p>
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-xl bg-[#141417] border border-gray-800 space-y-1">
+        <div class="flex justify-between font-bold">
+          <span id="cancelModalBillNo" class="text-amber-400 font-mono-num">Bill #00</span>
+          <span id="cancelModalBillAmt" class="text-white font-mono-num">₹0</span>
+        </div>
+        <div class="text-[11px] text-gray-400">
+          Customer: <b id="cancelModalCustName" class="text-gray-200">Walk-in</b>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-gray-300 leading-relaxed">
+        Bill cancel karne par yeh <b>Sales Report</b> se hat jayega aur agar <b>Udhar Khata</b> me juda hai to khate se bhi balance automatic kam ho jayega.
+      </p>
+
+      <div class="pt-1 flex gap-2">
+        <button onclick="closeCancelBillConfirmModal()" class="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold">
+          Nahi
+        </button>
+        <button onclick="confirmCancelSavedBill()" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black flex items-center justify-center gap-1 shadow">
+          <i class="fa-solid fa-ban text-xs"></i>
+          <span>Haan, Cancel</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST -->
   <div id="appToast" class="hidden fixed bottom-14 left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-2xl z-50">
     Notification
@@ -1327,7 +1388,9 @@
       paperWidth: '80mm',
       autoCut: true,
       printCopies: 1,
-      lineFeeds: 4
+      lineFeeds: 4,
+      printerFont: 'fontA',
+      boldMode: 'double'
     };
 
     let receiptConfig = {
@@ -1345,7 +1408,7 @@
       showCustomerName: true,
       showDateTime: true,
       extraBoldPrint: true,
-      fontFamily: 'monospace',
+      fontFamily: 'atkinson',
       headerWeight: 'font-black',
       showSrNoCol: true,
       showRateCol: false,
@@ -1623,7 +1686,8 @@
     
     function updatePrevBillTopBar(bill) {
       if (!bill) {
-        if (savedBills && savedBills.length > 0) bill = savedBills[0];
+        const activeSaved = (savedBills || []).find(b => !b.isCancelled);
+        if (activeSaved) bill = activeSaved;
         else {
           const bNo = document.getElementById('topBarPrevBillNo');
           if (bNo) bNo.innerText = '#--';
@@ -1940,14 +2004,18 @@
           const totBills = mBills.reduce((s, b) => s + (b.due !== undefined ? b.due : b.amount || 0), 0);
           const totPays = mPays.reduce((s, p) => s + (p.amount || 0), 0);
 
+          const cancelledIds = new Set(savedBills.filter(b => b && b.isCancelled).map(b => b.id));
+          const cleanBills = mBills.filter(b => !cancelledIds.has(b.id));
+          const cleanTotBills = cleanBills.reduce((s, b) => s + (b.due !== undefined ? b.due : b.amount || 0), 0);
+
           khataLedger[cName] = {
             ...lk,
             ...rk,
             customerName: cName,
             openingBalance: opBal,
-            bills: mBills,
+            bills: cleanBills,
             payments: mPays,
-            totalDue: Math.max(0, opBal + totBills - totPays)
+            totalDue: Math.max(0, opBal + cleanTotBills - totPays)
           };
           changed = true;
         });
@@ -1967,7 +2035,7 @@
 
       if (changed) {
         saveLocalOnly();
-        if (savedBills.length > 0) updatePrevBillTopBar(savedBills[0]);
+        updatePrevBillTopBar();
         if (!document.getElementById('reportsModal').classList.contains('hidden')) renderDailyReport();
         if (!document.getElementById('khataModal').classList.contains('hidden')) renderKhataList();
         if (!document.getElementById('inventoryModal').classList.contains('hidden')) renderInventoryItems();
@@ -3430,6 +3498,15 @@
       const cfg = receiptConfig;
       const paper = document.getElementById('thermalReceiptPaper');
       paper.style.maxWidth = (config.paperWidth === '58mm') ? '260px' : '340px';
+      const fontMap = {
+        atkinson: "'Atkinson Hyperlegible', 'Barlow', sans-serif",
+        barlow: "'Barlow', 'Atkinson Hyperlegible', sans-serif",
+        monospace: "'JetBrains Mono', monospace",
+        roboto: "'Roboto Mono', monospace",
+        space: "'Space Mono', monospace",
+        sans: "'Inter', sans-serif"
+      };
+      paper.style.setProperty('font-family', fontMap[cfg.fontFamily || 'atkinson'] || fontMap.atkinson, 'important');
 
       // Header Mode (Logo / Store Name / Both)
       const logoCont = document.getElementById('rcptLogoContainer');
@@ -3748,7 +3825,7 @@
           showCustomerName: true,
           showDateTime: true,
           extraBoldPrint: true,
-          fontFamily: 'monospace',
+          fontFamily: 'atkinson',
           headerWeight: 'font-black',
           showSrNoCol: true,
           showRateCol: false
@@ -3762,6 +3839,10 @@
       config.autoCut = document.getElementById('settingAutoCut').value === 'true';
       config.printCopies = parseInt(document.getElementById('settingPrintCopies').value) || 1;
       config.lineFeeds = parseInt(document.getElementById('settingLineFeeds').value) || 4;
+      const pfEl = document.getElementById('settingPrinterFont');
+      if (pfEl) config.printerFont = pfEl.value || 'fontA';
+      const bmEl = document.getElementById('settingBoldMode');
+      if (bmEl) config.boldMode = bmEl.value || 'double';
       persistAllData();
       closeSettingsModal();
       showToast('Hardware printer settings saved!');
@@ -3820,37 +3901,41 @@
         return matchDate && matchCust;
       });
 
+      let activeBillsCount = 0;
       let totalQty = 0;
       let billCash = 0;
       let billUpi = 0;
       const itemMap = {};
 
       filtered.forEach(b => {
-        totalQty += b.items.reduce((s, i) => s + i.qty, 0);
+        if (!b.isCancelled) {
+          activeBillsCount++;
+          totalQty += b.items.reduce((s, i) => s + i.qty, 0);
 
-        // Exclude Udhar (Credit) sales from Total Sell; only count actual Cash & UPI received
-        if (b.paymentMode === 'Credit' || b.isUdhar) {
-          // Udhar sale not counted in Total Sell
-        } else if (b.paymentMode === 'UPI') {
-          billUpi += (b.grandTotal || 0);
-        } else if (b.paymentMode === 'Cash+UPI') {
-          billCash += (b.splitCash || 0);
-          billUpi += (b.splitUpi || 0);
-        } else if (b.paymentMode === 'Partial') {
-          // Only paid portion is cash received; partialDue is Udhar
-          billCash += (b.partialPaid || 0);
-        } else {
-          // Default Cash
-          billCash += (b.grandTotal || 0);
-        }
-
-        b.items.forEach(it => {
-          if (!itemMap[it.name]) {
-            itemMap[it.name] = { name: it.name, qty: 0, total: 0 };
+          // Exclude Udhar (Credit) sales from Total Sell; only count actual Cash & UPI received
+          if (b.paymentMode === 'Credit' || b.isUdhar) {
+            // Udhar sale not counted in Total Sell
+          } else if (b.paymentMode === 'UPI') {
+            billUpi += (b.grandTotal || 0);
+          } else if (b.paymentMode === 'Cash+UPI') {
+            billCash += (b.splitCash || 0);
+            billUpi += (b.splitUpi || 0);
+          } else if (b.paymentMode === 'Partial') {
+            // Only paid portion is cash received; partialDue is Udhar
+            billCash += (b.partialPaid || 0);
+          } else {
+            // Default Cash
+            billCash += (b.grandTotal || 0);
           }
-          itemMap[it.name].qty += it.qty;
-          itemMap[it.name].total += it.total;
-        });
+
+          b.items.forEach(it => {
+            if (!itemMap[it.name]) {
+              itemMap[it.name] = { name: it.name, qty: 0, total: 0 };
+            }
+            itemMap[it.name].qty += it.qty;
+            itemMap[it.name].total += it.total;
+          });
+        }
 
         let payLabel = b.paymentMode || 'Cash';
         if (b.paymentMode === 'Cash+UPI') {
@@ -3858,30 +3943,52 @@
         }
 
         const card = document.createElement('div');
-        card.className = 'bg-[#18181b] p-3 rounded-xl border border-gray-800 text-xs space-y-1.5';
+        card.className = b.isCancelled
+          ? 'bg-[#1a1315] p-3 rounded-xl border border-red-500/40 text-xs space-y-1.5 opacity-80'
+          : 'bg-[#18181b] p-3 rounded-xl border border-gray-800 text-xs space-y-1.5';
+
+        const actionButtonsHtml = b.isCancelled
+          ? `<div class="pt-1.5 flex items-center justify-between gap-2 font-bold text-[10px]">
+              <span class="px-2 py-1 rounded bg-red-500/20 text-red-400 border border-red-500/30 font-black tracking-wide">
+                <i class="fa-solid fa-ban mr-1"></i>CANCELLED (रद्द)
+              </span>
+              <div class="flex items-center gap-1.5">
+                <button onclick="openReceiptModal(savedBills.find(x => x.id === '${b.id}'))" class="px-2.5 py-1.5 rounded-lg bg-purple-600/30 text-purple-300 hover:bg-purple-600/40 flex items-center gap-1">
+                  <i class="fa-solid fa-eye"></i><span>View</span>
+                </button>
+                <button onclick="restoreCancelledBill('${b.id}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/40 flex items-center gap-1">
+                  <i class="fa-solid fa-rotate-left"></i><span>Restore</span>
+                </button>
+              </div>
+            </div>`
+          : `<div class="pt-1.5 grid grid-cols-5 gap-1 font-bold text-[10px]">
+              <button onclick="viewReportBill('${b.id}')" class="py-1.5 rounded-lg bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/40 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-square-check"></i><span>Recheck</span>
+              </button>
+              <button onclick="openReceiptModal(savedBills.find(x => x.id === '${b.id}'))" class="py-1.5 rounded-lg bg-purple-600/30 text-purple-300 hover:bg-purple-600/40 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-eye"></i><span>View</span>
+              </button>
+              <button onclick="modifySavedBill('${b.id}')" class="py-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-pen"></i><span>Edit</span>
+              </button>
+              <button onclick="printReportBill('${b.id}')" class="py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 flex items-center justify-center gap-1">
+                <i class="fa-brands fa-bluetooth-b"></i><span>Print</span>
+              </button>
+              <button onclick="promptCancelSavedBill('${b.id}')" class="py-1.5 rounded-lg bg-red-600/25 text-red-400 hover:bg-red-600/40 border border-red-500/30 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-ban"></i><span>Cancel</span>
+              </button>
+            </div>`;
+
         card.innerHTML = `
           <div class="flex justify-between items-center">
-            <span class="font-bold text-amber-400 font-mono-num">Bill #${b.billNo}${b.deviceName ? ` <span class="text-[9px] bg-gray-800 text-emerald-400 px-1.5 py-0.5 rounded ml-1">${b.deviceName}</span>` : ""}</span>
-            <span class="font-bold text-white font-mono-num">₹${b.grandTotal}</span>
+            <span class="font-bold ${b.isCancelled ? 'text-red-400 line-through' : 'text-amber-400'} font-mono-num">Bill #${b.billNo}${b.deviceName ? ` <span class="text-[9px] bg-gray-800 text-emerald-400 px-1.5 py-0.5 rounded ml-1 no-underline inline-block">${b.deviceName}</span>` : ""}</span>
+            <span class="font-bold ${b.isCancelled ? 'text-red-400 line-through' : 'text-white'} font-mono-num">₹${b.grandTotal}</span>
           </div>
           <div class="text-[11px] text-gray-400 flex justify-between">
             <span>Cust: <b class="text-white">${b.customerName || 'Walk-in'}</b> ${b.customerMobile ? `(${b.customerMobile})` : ''}</span>
             <span class="${b.paymentMode === 'Credit' ? 'text-red-400 font-bold' : 'text-gray-300'}">${payLabel}</span>
           </div>
-          <div class="pt-1.5 grid grid-cols-4 gap-1.5 font-bold text-[10px]">
-            <button onclick="viewReportBill('${b.id}')" class="py-1.5 rounded-lg bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/40 flex items-center justify-center gap-1">
-              <i class="fa-solid fa-square-check"></i><span>Recheck</span>
-            </button>
-            <button onclick="openReceiptModal(savedBills.find(x => x.id === '${b.id}'))" class="py-1.5 rounded-lg bg-purple-600/30 text-purple-300 hover:bg-purple-600/40 flex items-center justify-center gap-1">
-              <i class="fa-solid fa-eye"></i><span>View</span>
-            </button>
-            <button onclick="modifySavedBill('${b.id}')" class="py-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 flex items-center justify-center gap-1">
-              <i class="fa-solid fa-pen"></i><span>Edit</span>
-            </button>
-            <button onclick="printReportBill('${b.id}')" class="py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 flex items-center justify-center gap-1">
-              <i class="fa-brands fa-bluetooth-b"></i><span>Print</span>
-            </button>
-          </div>
+          ${actionButtonsHtml}
         `;
         bList.appendChild(card);
       });
@@ -3926,7 +4033,7 @@
 
       const totalSell = billCash + khataCash + billUpi + khataUpi;
 
-      document.getElementById('kpiTotalBills').innerText = filtered.length;
+      document.getElementById('kpiTotalBills').innerText = activeBillsCount;
       document.getElementById('kpiTotalQty').innerText = totalQty;
       document.getElementById('kpiTotalAmount').innerText = "₹" + totalSell;
 
@@ -3940,6 +4047,96 @@
       if (elKU) elKU.innerText = "₹" + khataUpi;
       const elNet = document.getElementById('repTotalNetSell');
       if (elNet) elNet.innerText = "₹" + totalSell;
+    }
+
+
+    let pendingCancelBillId = null;
+
+    function promptCancelSavedBill(billId) {
+      const b = savedBills.find(x => x.id === billId);
+      if (!b) return;
+      pendingCancelBillId = billId;
+      document.getElementById('cancelModalBillNo').innerText = 'Bill #' + String(b.billNo).padStart(2, '0');
+      document.getElementById('cancelModalBillAmt').innerText = '₹' + (b.grandTotal || 0);
+      document.getElementById('cancelModalCustName').innerText = b.customerName || 'Walk-in';
+      document.getElementById('cancelBillConfirmModal').classList.remove('hidden');
+    }
+
+    function closeCancelBillConfirmModal() {
+      pendingCancelBillId = null;
+      document.getElementById('cancelBillConfirmModal').classList.add('hidden');
+    }
+
+    function removeBillFromUdharKhata(bill) {
+      if (!bill || !bill.customerName) return null;
+      const cleanName = bill.customerName.trim();
+      const key = Object.keys(khataLedger).find(k => k.trim().toLowerCase() === cleanName.toLowerCase());
+      if (!key || !khataLedger[key]) return null;
+
+      const c = khataLedger[key];
+      const origLen = (c.bills || []).length;
+      c.bills = (c.bills || []).filter(kb => kb.id !== bill.id);
+      if (c.bills.length !== origLen) {
+        const totBills = c.bills.reduce((s, kb) => s + (kb.due !== undefined ? kb.due : kb.amount || 0), 0);
+        const totPays = (c.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+        c.totalDue = Math.max(0, (c.openingBalance || 0) + totBills - totPays);
+        return key;
+      }
+      return null;
+    }
+
+    function confirmCancelSavedBill() {
+      if (!pendingCancelBillId) return;
+      const b = savedBills.find(x => x.id === pendingCancelBillId);
+      if (!b) {
+        closeCancelBillConfirmModal();
+        return;
+      }
+
+      b.isCancelled = true;
+      b.cancelledAt = new Date().toISOString();
+      b.updatedAt = Date.now();
+
+      const updatedKhataKey = removeBillFromUdharKhata(b);
+
+      persistAllData();
+      updatePrevBillTopBar();
+      closeCancelBillConfirmModal();
+      renderDailyReport();
+
+      if (syncConfig.enabled && syncConfig.dbUrl) {
+        pushBillToCloud(b);
+        if (updatedKhataKey) pushKhataCustomerToCloud(updatedKhataKey);
+      }
+
+      showToast('Bill #' + b.billNo + ' cancelled!');
+    }
+
+    function restoreCancelledBill(billId) {
+      const b = savedBills.find(x => x.id === billId);
+      if (!b) return;
+
+      b.isCancelled = false;
+      delete b.cancelledAt;
+      b.updatedAt = Date.now();
+
+      if (b.paymentMode === 'Credit' || b.isUdhar || (b.paymentMode === 'Partial' && (b.partialDue || 0) > 0)) {
+        syncBillToUdharKhata(b);
+      }
+
+      persistAllData();
+      updatePrevBillTopBar();
+      renderDailyReport();
+
+      if (syncConfig.enabled && syncConfig.dbUrl) {
+        pushBillToCloud(b);
+        if (b.customerName) {
+          const key = Object.keys(khataLedger).find(k => k.trim().toLowerCase() === b.customerName.trim().toLowerCase());
+          if (key) pushKhataCustomerToCloud(key);
+        }
+      }
+
+      showToast('Bill #' + b.billNo + ' restored!');
     }
 
     function viewReportBill(id) {
@@ -4322,7 +4519,11 @@
         const pushText = (t) => encoder.encode(t).forEach(b => bytes.push(b));
 
         pushArr([0x1B, 0x40]);
-        pushArr([0x1B, 0x45, 0x01]);
+        pushArr([0x1B, 0x4D, (config.printerFont === 'fontB') ? 0x01 : 0x00]); // Font A for clear 6 vs 8
+        pushArr([0x1B, 0x45, 0x01]); // Bold ON
+        if ((config.boldMode || 'double') === 'double') {
+          pushArr([0x1B, 0x47, 0x01]); // Double-Strike ON
+        }
         pushArr([0x1B, 0x61, 0x01]);
         pushText((config.storeName || 'ADDIS JEANS') + "\n");
         pushText("CUSTOMER KHATA STATEMENT\n");
@@ -4534,12 +4735,24 @@
         const feeds = parseInt(config.lineFeeds) || 4;
 
         pushArr([0x1B, 0x40]); // Reset
+        // Select ESC/POS Hardware Font (Font A gives crispest 6 vs 8 distinction)
+        if (config.printerFont === 'fontB') {
+          pushArr([0x1B, 0x4D, 0x01]); // Font B
+        } else {
+          pushArr([0x1B, 0x4D, 0x00]); // Font A (12x24 clear digits)
+        }
+        // Apply Bold + Double-Strike across entire thermal slip
+        const bMode = config.boldMode || 'double';
+        if (bMode === 'double') {
+          pushArr([0x1B, 0x45, 0x01]); // Bold ON
+          pushArr([0x1B, 0x47, 0x01]); // Double-Strike ON
+        } else if (bMode === 'bold' || receiptConfig.extraBoldPrint !== false) {
+          pushArr([0x1B, 0x45, 0x01]); // Bold ON
+        }
+
         pushArr([0x1B, 0x61, 0x01]); // Align Center
 
-        // Logo removed per user request
-
-        if (receiptConfig.extraBoldPrint !== false) {
-          pushArr([0x1B, 0x45, 0x01]); // Bold
+        if (receiptConfig.extraBoldPrint !== false || bMode !== 'normal') {
           pushArr([0x1D, 0x21, 0x01]); // Double height text for store name
         }
 
@@ -4894,6 +5107,10 @@
       document.getElementById('settingAutoCut').value = String(config.autoCut !== false);
       document.getElementById('settingPrintCopies').value = String(config.printCopies || 1);
       document.getElementById('settingLineFeeds').value = String(config.lineFeeds || 4);
+      const pfEl = document.getElementById('settingPrinterFont');
+      if (pfEl) pfEl.value = config.printerFont || 'fontA';
+      const bmEl = document.getElementById('settingBoldMode');
+      if (bmEl) bmEl.value = config.boldMode || 'double';
       document.getElementById('settingsModal').classList.remove('hidden');
     }
     function closeSettingsModal() {
@@ -5163,8 +5380,8 @@
 </script>
 
   <!-- ================= WHATSAPP SHARE 3D RECEIPT TEMPLATE ================= -->
-  <div id="waShareReceiptWrapper" style="position: fixed; left: -9999px; top: 0; width: 372px; padding: 8px 6px; background: linear-gradient(135deg, #e5dac9 0%, #d8cbb8 100%); font-family: 'Roboto', sans-serif; z-index: -9999;">
-    <div id="waShareReceiptPaper" style="background: linear-gradient(180deg, #fcf8f0 0%, #f5ecdc 100%); color: #0a0a0a; padding: 18px 16px 14px 16px; border-radius: 3px; box-shadow: 0 8px 22px rgba(0,0,0,0.22), 0 2px 5px rgba(0,0,0,0.12); position: relative; font-family: 'Roboto', sans-serif;">
+  <div id="waShareReceiptWrapper" style="position: fixed; left: -9999px; top: 0; width: 372px; padding: 8px 6px; background: linear-gradient(135deg, #e5dac9 0%, #d8cbb8 100%); font-family: 'Atkinson Hyperlegible', 'Barlow', sans-serif; z-index: -9999; font-variant-numeric: tabular-nums;">
+    <div id="waShareReceiptPaper" style="background: linear-gradient(180deg, #fcf8f0 0%, #f5ecdc 100%); color: #0a0a0a; padding: 18px 16px 14px 16px; border-radius: 3px; box-shadow: 0 8px 22px rgba(0,0,0,0.22), 0 2px 5px rgba(0,0,0,0.12); position: relative; font-family: 'Atkinson Hyperlegible', 'Barlow', sans-serif; -webkit-text-stroke: 0.35px #0a0a0a;">
       
       <!-- Header: 3D Embossed Black Logo & Store Info -->
       <div style="text-align: center; margin-bottom: 8px;">
