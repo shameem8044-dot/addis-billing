@@ -3513,19 +3513,21 @@
 
     function getCustomerPreviousKhataBalance(bill) {
       if (!bill || !bill.customerName) return 0;
+      const khataCust = findKhataCustomer(bill.customerName);
+      if (khataCust) {
+        let prevDue = khataCust.totalDue || 0;
+        if (bill.id && khataCust.bills) {
+          const existing = khataCust.bills.find(b => b.id === bill.id);
+          if (existing) {
+            prevDue = prevDue - (existing.due !== undefined ? existing.due : existing.amount);
+          }
+        }
+        return Math.max(0, prevDue);
+      }
       if (typeof bill.previousBalance === 'number') {
         return Math.max(0, bill.previousBalance);
       }
-      const khataCust = findKhataCustomer(bill.customerName);
-      if (!khataCust) return 0;
-      let prevDue = khataCust.totalDue || 0;
-      if (bill.id && khataCust.bills) {
-        const existing = khataCust.bills.find(b => b.id === bill.id);
-        if (existing) {
-          prevDue = prevDue - (existing.due !== undefined ? existing.due : existing.amount);
-        }
-      }
-      return Math.max(0, prevDue);
+      return 0;
     }
 
     function syncBillToUdharKhata(bill) {
