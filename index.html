@@ -4193,11 +4193,13 @@
     }
 
     function openReportsModal() {
-      document.getElementById('reportCustomerSearchInput').value = '';
+      const modal = document.getElementById('reportsModal');
+      if (modal) modal.classList.remove('hidden');
+      const searchInp = document.getElementById('reportCustomerSearchInput');
+      if (searchInp) searchInp.value = '';
       currentReportTab = 'bills';
       setReportPeriod('today');
       switchReportTab('bills');
-      document.getElementById('reportsModal').classList.remove('hidden');
     }
 
     function closeReportsModal() {
@@ -4250,7 +4252,8 @@
       filtered.forEach(b => {
         if (!b.isCancelled) {
           activeBillsCount++;
-          totalQty += b.items.reduce((s, i) => s + i.qty, 0);
+          const bItems = Array.isArray(b.items) ? b.items : (b.items && typeof b.items === 'object' ? Object.values(b.items) : []);
+          totalQty += bItems.reduce((s, i) => s + (i && i.qty ? Number(i.qty) : 0), 0);
 
           // Exclude Udhar (Credit) sales from Total Sell; only count actual Cash & UPI received
           if (b.paymentMode === 'Credit' || b.isUdhar) {
@@ -4276,7 +4279,7 @@
             billCash += (b.grandTotal || 0);
           }
 
-          b.items.forEach(it => {
+          bItems.forEach(it => { if (!it) return;
             if (!itemMap[it.name]) {
               itemMap[it.name] = { name: it.name, qty: 0, total: 0 };
             }
@@ -4332,7 +4335,8 @@
               </button>
             </div>`;
 
-        const billQty = (b.items || []).reduce((s, i) => s + (i.qty || 0), 0);
+        const bItemsCard = Array.isArray(b.items) ? b.items : (b.items && typeof b.items === 'object' ? Object.values(b.items) : []);
+        const billQty = bItemsCard.reduce((s, i) => s + (i && i.qty ? Number(i.qty) : 0), 0);
         card.innerHTML = `
           <div class="flex justify-between items-center gap-2">
             <span class="font-bold ${b.isCancelled ? 'text-red-400 line-through' : 'text-amber-400'} font-mono-num">Bill #${b.billNo}${b.deviceName ? ` <span class="text-[9px] bg-gray-800 text-emerald-400 px-1.5 py-0.5 rounded ml-1 no-underline inline-block">${b.deviceName}</span>` : ""}</span>
@@ -4377,7 +4381,8 @@
       Object.values(khataLedger || {}).forEach(c => {
         if (!c) return;
         if (custQuery && !(c.customerName || '').toLowerCase().includes(custQuery)) return;
-        (c.payments || []).forEach(p => {
+        const cPayments = Array.isArray(c.payments) ? c.payments : (c.payments && typeof c.payments === 'object' ? Object.values(c.payments) : []);
+        cPayments.forEach(p => { if (!p) return;
           if (!matchesReportDateFilter(p.date)) return;
           const m = (p.mode || 'Cash').trim();
           if (m === 'Cash') {
