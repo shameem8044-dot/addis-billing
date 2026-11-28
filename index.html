@@ -991,10 +991,17 @@
         </button>
       </div>
 
+      <div class="px-2.5 pt-2 pb-1 bg-[#1e1e24] grid grid-cols-4 gap-1.5 text-[11px] font-bold">
+        <button type="button" id="repPeriodTodayBtn" onclick="setReportPeriod('today')" class="py-1.5 rounded-lg bg-emerald-500 text-black font-black shadow transition">Today</button>
+        <button type="button" id="repPeriodMonthBtn" onclick="setReportPeriod('month')" class="py-1.5 rounded-lg bg-[#121215] text-gray-300 border border-gray-700 hover:bg-gray-800 transition">This Month</button>
+        <button type="button" id="repPeriodYearBtn" onclick="setReportPeriod('year')" class="py-1.5 rounded-lg bg-[#121215] text-gray-300 border border-gray-700 hover:bg-gray-800 transition">This Year</button>
+        <button type="button" id="repPeriodAllBtn" onclick="setReportPeriod('all')" class="py-1.5 rounded-lg bg-[#121215] text-gray-300 border border-gray-700 hover:bg-gray-800 transition">All</button>
+      </div>
+
       <div class="p-2.5 bg-[#1e1e24] border-b border-gray-800 grid grid-cols-2 gap-2 text-xs">
         <div>
           <span class="text-gray-400 text-[10px] font-semibold block mb-0.5">Filter Date:</span>
-          <input type="date" id="reportDateInput" onchange="renderDailyReport()" class="w-full bg-[#121215] text-white border border-gray-700 rounded px-2 py-1 text-xs">
+          <input type="date" id="reportDateInput" onchange="onReportDateInputChange()" class="w-full bg-[#121215] text-white border border-gray-700 rounded px-2 py-1 text-xs">
         </div>
         <div>
           <span class="text-gray-400 text-[10px] font-semibold block mb-0.5">Search Customer Name:</span>
@@ -4129,10 +4136,66 @@
     /* ==========================================================================
        REPORTS (CUSTOMER SEARCH & ITEM-WISE SALES)
        ========================================================================== */
+    let currentReportPeriod = 'today';
+
+    function updateReportPeriodButtonsUI() {
+      const map = {
+        today: 'repPeriodTodayBtn',
+        month: 'repPeriodMonthBtn',
+        year: 'repPeriodYearBtn',
+        all: 'repPeriodAllBtn'
+      };
+      Object.entries(map).forEach(([key, id]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        if (currentReportPeriod === key) {
+          btn.className = 'py-1.5 rounded-lg bg-emerald-500 text-black font-black shadow transition';
+        } else {
+          btn.className = 'py-1.5 rounded-lg bg-[#121215] text-gray-300 border border-gray-700 hover:bg-gray-800 transition';
+        }
+      });
+    }
+
+    function setReportPeriod(period) {
+      currentReportPeriod = period;
+      const dateInp = document.getElementById('reportDateInput');
+      if (dateInp) {
+        dateInp.value = (period === 'today') ? toLocalDateKey(new Date()) : '';
+      }
+      updateReportPeriodButtonsUI();
+      renderDailyReport();
+    }
+
+    function onReportDateInputChange() {
+      const val = document.getElementById('reportDateInput').value;
+      if (!val) {
+        setReportPeriod('all');
+        return;
+      }
+      currentReportPeriod = (val === toLocalDateKey(new Date())) ? 'today' : 'custom';
+      updateReportPeriodButtonsUI();
+      renderDailyReport();
+    }
+
+    function matchesReportDateFilter(dateVal) {
+      const selectedDate = document.getElementById('reportDateInput').value;
+      if (selectedDate) {
+        return !!(dateVal && toLocalDateKey(dateVal) === selectedDate);
+      }
+      if (currentReportPeriod === 'all') return true;
+      if (!dateVal) return false;
+      const key = toLocalDateKey(dateVal);
+      const nowKey = toLocalDateKey(new Date());
+      if (currentReportPeriod === 'today') return key === nowKey;
+      if (currentReportPeriod === 'month') return key.slice(0, 7) === nowKey.slice(0, 7);
+      if (currentReportPeriod === 'year') return key.slice(0, 4) === nowKey.slice(0, 4);
+      return true;
+    }
+
     function openReportsModal() {
       document.getElementById('reportCustomerSearchInput').value = '';
-      document.getElementById('reportDateInput').value = '';
       currentReportTab = 'bills';
+      setReportPeriod('today');
       switchReportTab('bills');
       document.getElementById('reportsModal').classList.remove('hidden');
     }
@@ -4172,8 +4235,7 @@
       iList.innerHTML = '';
 
       const filtered = savedBills.filter(b => {
-        let matchDate = true;
-        if (selectedDate) matchDate = b.date && toLocalDateKey(b.date) === selectedDate;
+        const matchDate = matchesReportDateFilter(b.date);
         let matchCust = true;
         if (custQuery) matchCust = b.customerName && b.customerName.toLowerCase().includes(custQuery);
         return matchDate && matchCust;
@@ -4316,7 +4378,7 @@
         if (!c) return;
         if (custQuery && !(c.customerName || '').toLowerCase().includes(custQuery)) return;
         (c.payments || []).forEach(p => {
-          if (selectedDate && toLocalDateKey(p.date) !== selectedDate) return;
+          if (!matchesReportDateFilter(p.date)) return;
           const m = (p.mode || 'Cash').trim();
           if (m === 'Cash') {
             khataCash += (p.amount || 0);
@@ -5155,7 +5217,7 @@
         }
 
         const lineHeight = Math.round(fontSize * 1.15);
-        const totalH = Math.max(40, lines.length * lineHeight + 16);
+        const totalH = Math.max(32, lines.length * lineHeight + 4);
         canvas.width = dotWidth;
         canvas.height = totalH;
 
@@ -5182,7 +5244,7 @@
 
         for (let cpy = 0; cpy < slipCopies; cpy++) {
           // 1. Init + Center + 1 Blank Line Feed Above
-          await writeBtChunked([0x1B, 0x40, 0x1B, 0x61, 0x01, 0x0A]);
+          await writeBtChunked([0x1B, 0x40, 0x1B, 0x61, 0x01]);
 
           // 2. Raster bitmap of Customer Name (full width bold)
           const bandHeight = 180;
@@ -5211,7 +5273,7 @@
           }
 
           // 3. 1 Blank Line Feed Below + Auto Cut
-          await writeBtChunked([0x0A, 0x1D, 0x56, 0x42, 0x00]);
+          await writeBtChunked([0x1D, 0x56, 0x42, 0x00]);
           if (cpy < slipCopies - 1) await new Promise(r => setTimeout(r, 150));
         }
         showToast(`${slipCopies} Customer Name Slip${slipCopies > 1 ? 's' : ''} printed & cut!`);
@@ -6391,15 +6453,13 @@
         <div>
           <div class="flex items-center justify-between mb-1">
             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thermal Slip Preview (Full Width Bold)</span>
-            <span class="text-[10px] font-bold text-sky-400">1 Blank Up + 1 Blank Down + Cut</span>
+            <span class="text-[10px] font-bold text-sky-400">Auto-Cut ✂</span>
           </div>
           <div class="bg-[#0d0d0f] p-3 rounded-xl border border-gray-800 flex justify-center">
             <div class="w-full max-w-[300px] bg-white text-black rounded shadow-lg overflow-hidden border border-gray-300">
-              <div class="h-5 border-b border-dashed border-gray-300 flex items-center justify-center text-[8px] text-gray-400 font-mono">--- 1 Blank Line Feed ---</div>
-              <div id="nameSlipPreviewBox" class="px-2 py-2 text-center font-black uppercase tracking-tight leading-none break-words text-black" style="font-family: 'Barlow', 'Atkinson Hyperlegible', sans-serif; font-size: 32px; -webkit-text-stroke: 0.8px #000;">
+              <div id="nameSlipPreviewBox" class="px-2 py-1.5 text-center font-black uppercase tracking-tight leading-none break-words text-black" style="font-family: 'Barlow', 'Atkinson Hyperlegible', sans-serif; font-size: 32px; -webkit-text-stroke: 0.8px #000;">
                 CUSTOMER NAME
               </div>
-              <div class="h-5 border-t border-dashed border-gray-300 flex items-center justify-center text-[8px] text-gray-400 font-mono">--- 1 Blank Line + Auto Cut ✂ ---</div>
             </div>
           </div>
         </div>
