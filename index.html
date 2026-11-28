@@ -210,6 +210,12 @@
         <i class="fa-solid fa-address-book text-xs"></i>
         <span class="hidden xs:inline">Contacts</span>
       </button>
+
+      <!-- Customer Name Slip Button -->
+      <button type="button" onclick="openCustomerNameSlipModal()" class="h-7 px-2 bg-sky-600/25 text-sky-300 hover:bg-sky-600/40 border border-sky-500/40 rounded flex items-center gap-1 text-[11px] font-bold shrink-0" title="Customer Name Slip Generate & Print karein">
+        <i class="fa-solid fa-tag text-xs"></i>
+        <span>Name Slip</span>
+      </button>
     </div>
 
     <!-- Row 2: Customer Mobile (Optional) + Udhar Toggle + Payment Mode -->
@@ -693,10 +699,16 @@
           <i class="fa-brands fa-bluetooth-b text-sm"></i>
           <span id="receiptModalPrintBtnText">Auto-Save & Bluetooth Print</span>
         </button>
-        <button onclick="shareBillDirectlyWhatsApp(currentViewingBill)" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center space-x-2 shadow">
-          <i class="fa-brands fa-whatsapp text-sm"></i>
-          <span>Share on WhatsApp</span>
-        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="shareBillDirectlyWhatsApp(currentViewingBill)" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center space-x-1.5 shadow">
+            <i class="fa-brands fa-whatsapp text-sm"></i>
+            <span>Share on WhatsApp</span>
+          </button>
+          <button type="button" onclick="openCustomerNameSlipModal(currentViewingBill ? currentViewingBill.customerName : '')" class="w-full py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center space-x-1.5 shadow">
+            <i class="fa-solid fa-tag text-sm"></i>
+            <span>Name Slip</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -5029,6 +5041,186 @@
       }
     }
 
+
+    /* ==========================================================================
+       CUSTOMER NAME SLIP GENERATOR (FULL WIDTH BOLD + 1 BLANK TOP/BOTTOM + CUT)
+       ========================================================================== */
+    function openCustomerNameSlipModal(prefillName) {
+      const inp = document.getElementById('nameSlipInput');
+      const fallback = (document.getElementById('custNameInput') ? document.getElementById('custNameInput').value.trim() : '') || (activeBill && activeBill.customerName) || '';
+      if (inp) inp.value = (prefillName || fallback || '').trim();
+      const qtyInp = document.getElementById('nameSlipQtyInput');
+      if (qtyInp) qtyInp.value = 1;
+      updateCustomerNameSlipBtnLabel();
+      updateCustomerNameSlipPreview();
+      document.getElementById('customerNameSlipModal').classList.remove('hidden');
+      setTimeout(() => { if (inp && !inp.value) inp.focus(); }, 60);
+    }
+
+    function adjustNameSlipQty(delta) {
+      const qtyInp = document.getElementById('nameSlipQtyInput');
+      if (!qtyInp) return;
+      let val = parseInt(qtyInp.value) || 1;
+      val = Math.min(50, Math.max(1, val + delta));
+      qtyInp.value = val;
+      updateCustomerNameSlipBtnLabel();
+    }
+
+    function updateCustomerNameSlipBtnLabel() {
+      const qtyInp = document.getElementById('nameSlipQtyInput');
+      const lbl = document.getElementById('nameSlipPrintBtnText');
+      if (!lbl) return;
+      const qty = Math.min(50, Math.max(1, parseInt(qtyInp ? qtyInp.value : 1) || 1));
+      lbl.innerText = qty === 1 ? 'Print 1 Name Slip (Auto-Cut)' : `Print ${qty} Name Slips (Auto-Cut)`;
+    }
+
+    function closeCustomerNameSlipModal() {
+      document.getElementById('customerNameSlipModal').classList.add('hidden');
+    }
+
+    function updateCustomerNameSlipPreview() {
+      const inp = document.getElementById('nameSlipInput');
+      const box = document.getElementById('nameSlipPreviewBox');
+      if (!box) return;
+      const name = (inp && inp.value.trim()) ? inp.value.trim() : 'CUSTOMER NAME';
+      box.innerText = name;
+      // Scale preview font size cleanly based on length
+      if (name.length <= 8) box.style.fontSize = '38px';
+      else if (name.length <= 14) box.style.fontSize = '30px';
+      else if (name.length <= 22) box.style.fontSize = '24px';
+      else box.style.fontSize = '20px';
+    }
+
+    async function printCustomerNameSlip() {
+      const inp = document.getElementById('nameSlipInput');
+      const rawName = (inp ? inp.value.trim() : '') || (document.getElementById('custNameInput') ? document.getElementById('custNameInput').value.trim() : '');
+      if (!rawName) {
+        showToast('Please enter Customer Name first');
+        if (inp) inp.focus();
+        return;
+      }
+
+      if (!bluetoothCharacteristic) {
+        await pairWebBluetooth();
+        if (!bluetoothCharacteristic) return;
+      }
+
+      try {
+        showToast('Printing Customer Name Slip...');
+        const is58mm = (config.paperWidth === '58mm');
+        const dotWidth = is58mm ? 384 : 576;
+        const padX = 8;
+        const maxTextW = dotWidth - padX * 2;
+
+        // Render full-width bold customer name on exact dotWidth canvas
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const fontFamily = "'Barlow', 'Atkinson Hyperlegible', 'Arial Black', sans-serif";
+        const displayText = rawName.toUpperCase();
+
+        // Auto-fit font size for maximum full-width bold coverage
+        let fontSize = is58mm ? 96 : 132;
+        const minSingleLineSize = is58mm ? 38 : 48;
+        let lines = [displayText];
+
+        while (fontSize > minSingleLineSize) {
+          ctx.font = `900 ${fontSize}px ${fontFamily}`;
+          if (ctx.measureText(displayText).width <= maxTextW) break;
+          fontSize -= 4;
+        }
+
+        // If very long name, wrap cleanly into 2 balanced lines at larger bold size
+        ctx.font = `900 ${fontSize}px ${fontFamily}`;
+        if (ctx.measureText(displayText).width > maxTextW && displayText.includes(' ')) {
+          const words = displayText.split(/\s+/);
+          let bestSplit = [displayText];
+          let bestMaxW = Infinity;
+          for (let i = 1; i < words.length; i++) {
+            const l1 = words.slice(0, i).join(' ');
+            const l2 = words.slice(i).join(' ');
+            const mw = Math.max(ctx.measureText(l1).width, ctx.measureText(l2).width);
+            if (mw < bestMaxW) {
+              bestMaxW = mw;
+              bestSplit = [l1, l2];
+            }
+          }
+          lines = bestSplit;
+          fontSize = is58mm ? 76 : 104;
+          while (fontSize > 28) {
+            ctx.font = `900 ${fontSize}px ${fontFamily}`;
+            const mw = Math.max(...lines.map(l => ctx.measureText(l).width));
+            if (mw <= maxTextW) break;
+            fontSize -= 4;
+          }
+        }
+
+        const lineHeight = Math.round(fontSize * 1.15);
+        const totalH = Math.max(40, lines.length * lineHeight + 16);
+        canvas.width = dotWidth;
+        canvas.height = totalH;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, dotWidth, totalH);
+        ctx.fillStyle = '#000000';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = Math.max(1.5, fontSize * 0.03);
+        ctx.font = `900 ${fontSize}px ${fontFamily}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        lines.forEach((line, idx) => {
+          const y = (totalH / 2) + (idx - (lines.length - 1) / 2) * lineHeight;
+          ctx.fillText(line, dotWidth / 2, y, maxTextW);
+          ctx.strokeText(line, dotWidth / 2, y, maxTextW);
+        });
+
+        const imgData = ctx.getImageData(0, 0, dotWidth, totalH).data;
+        const widthBytes = dotWidth / 8;
+
+        const qtyInp = document.getElementById('nameSlipQtyInput');
+        const slipCopies = Math.min(50, Math.max(1, parseInt(qtyInp ? qtyInp.value : 1) || 1));
+
+        for (let cpy = 0; cpy < slipCopies; cpy++) {
+          // 1. Init + Center + 1 Blank Line Feed Above
+          await writeBtChunked([0x1B, 0x40, 0x1B, 0x61, 0x01, 0x0A]);
+
+          // 2. Raster bitmap of Customer Name (full width bold)
+          const bandHeight = 180;
+          for (let yStart = 0; yStart < totalH; yStart += bandHeight) {
+            const sliceH = Math.min(bandHeight, totalH - yStart);
+            const bandBytes = [
+              0x1D, 0x76, 0x30, 0,
+              widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
+              sliceH & 0xFF, (sliceH >> 8) & 0xFF
+            ];
+            for (let y = yStart; y < yStart + sliceH; y++) {
+              for (let b = 0; b < widthBytes; b++) {
+                let byte = 0;
+                for (let bit = 0; bit < 8; bit++) {
+                  const x = b * 8 + bit;
+                  const idx = (y * dotWidth + x) * 4;
+                  const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+                  if (lum < 185 && imgData[idx + 3] > 50) {
+                    byte |= (0x80 >> bit);
+                  }
+                }
+                bandBytes.push(byte);
+              }
+            }
+            await writeBtChunked(bandBytes);
+          }
+
+          // 3. 1 Blank Line Feed Below + Auto Cut
+          await writeBtChunked([0x0A, 0x1D, 0x56, 0x42, 0x00]);
+          if (cpy < slipCopies - 1) await new Promise(r => setTimeout(r, 150));
+        }
+        showToast(`${slipCopies} Customer Name Slip${slipCopies > 1 ? 's' : ''} printed & cut!`);
+      } catch (err) {
+        console.error('Name slip print error:', err);
+        showToast('Print failed: ' + err.message);
+      }
+    }
+
     async function printReceiptAs80mmImage(billData) {
       const bill = billData || activeBill;
       if (!bill || !bill.items || bill.items.length === 0) {
@@ -6163,6 +6355,63 @@
       <div class="pt-2">
         <button onclick="saveOpeningBalance()" class="w-full py-2.5 rounded-xl bg-amber-500 text-black font-black">
           Save Opening Balance
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CUSTOMER NAME SLIP GENERATOR MODAL ================= -->
+  <div id="customerNameSlipModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-[70] flex items-center justify-center p-3">
+    <div class="bg-[#18181b] border border-sky-500/40 w-full max-w-sm rounded-2xl overflow-hidden flex flex-col max-h-[92vh] shadow-2xl">
+      <div class="bg-[#121215] px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-tag text-sky-400"></i>
+          <h3 class="text-sm font-black text-white">Customer Name Slip (Auto-Cut)</h3>
+        </div>
+        <button type="button" onclick="closeCustomerNameSlipModal()" class="text-gray-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="p-4 space-y-3 overflow-y-auto">
+        <div>
+          <label class="block text-gray-300 text-[11px] font-bold mb-1">Customer Name (केवल नाम)</label>
+          <input type="text" id="nameSlipInput" oninput="updateCustomerNameSlipPreview()" placeholder="Customer ka naam likhein..." class="w-full bg-[#121215] text-white px-3 py-2 rounded-xl border border-gray-700 focus:border-sky-500 text-sm font-bold outline-none">
+        </div>
+
+        <div class="flex items-center justify-between bg-[#121215] px-3 py-2 rounded-xl border border-gray-800">
+          <span class="text-gray-300 text-xs font-bold">Slip Quantity (कितनी स्लिप):</span>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="adjustNameSlipQty(-1)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-white font-black text-sm flex items-center justify-center">-</button>
+            <input type="number" id="nameSlipQtyInput" value="1" min="1" max="50" oninput="updateCustomerNameSlipBtnLabel()" class="w-14 h-8 bg-[#18181b] text-white text-center font-mono-num font-black text-sm rounded-lg border border-gray-700 outline-none">
+            <button type="button" onclick="adjustNameSlipQty(1)" class="w-8 h-8 rounded-lg bg-sky-600/30 hover:bg-sky-600/50 text-sky-300 border border-sky-500/40 font-black text-sm flex items-center justify-center">+</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thermal Slip Preview (Full Width Bold)</span>
+            <span class="text-[10px] font-bold text-sky-400">1 Blank Up + 1 Blank Down + Cut</span>
+          </div>
+          <div class="bg-[#0d0d0f] p-3 rounded-xl border border-gray-800 flex justify-center">
+            <div class="w-full max-w-[300px] bg-white text-black rounded shadow-lg overflow-hidden border border-gray-300">
+              <div class="h-5 border-b border-dashed border-gray-300 flex items-center justify-center text-[8px] text-gray-400 font-mono">--- 1 Blank Line Feed ---</div>
+              <div id="nameSlipPreviewBox" class="px-2 py-2 text-center font-black uppercase tracking-tight leading-none break-words text-black" style="font-family: 'Barlow', 'Atkinson Hyperlegible', sans-serif; font-size: 32px; -webkit-text-stroke: 0.8px #000;">
+                CUSTOMER NAME
+              </div>
+              <div class="h-5 border-t border-dashed border-gray-300 flex items-center justify-center text-[8px] text-gray-400 font-mono">--- 1 Blank Line + Auto Cut ✂ ---</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 bg-[#121215] border-t border-gray-800 flex gap-2">
+        <button type="button" onclick="closeCustomerNameSlipModal()" class="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold">
+          Close
+        </button>
+        <button type="button" onclick="printCustomerNameSlip()" class="flex-1 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black flex items-center justify-center gap-2 shadow">
+          <i class="fa-brands fa-bluetooth-b"></i>
+          <span id="nameSlipPrintBtnText">Print 1 Name Slip (Auto-Cut)</span>
         </button>
       </div>
     </div>
